@@ -27,6 +27,7 @@ CStaticFileRequestHandler::ContentTypes()
 	contentTypes["css"]  = "text/css";
 	contentTypes["gif"]	 = "image/gif";
 	contentTypes["png"]  = "image/png";
+	contentTypes["mp3"]  = "audio/mpeg";
 	return contentTypes;
 }
 
@@ -48,6 +49,7 @@ CStaticFileRequestHandler::handleRequest(Poco::Net::HTTPServerRequest &req, Poco
 	try
 	{
 		Poco::Path	relative(req.getURI().substr(URI.length()));
+		std::cout << relative.toString() << std::endl;
 		Poco::Path	file(m_wwwRoot, relative);
 		if (!file.isFile() ||
 			!Poco::File(file).exists() ||

@@ -64,7 +64,7 @@
     </Link>
     <PostBuildEvent>
       <Command>mkdir $(SolutionDir)..\Application\$(Configuration)\www
-xcopy $(SolutionDir)\www $(SolutionDir)..\Application\$(Configuration)\www /y /s /e</Command>
+xcopy $(SolutionDir)\www $(SolutionDir)..\Application\$(Configuration)\www /Y /E</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -87,7 +87,7 @@ xcopy $(SolutionDir)\www $(SolutionDir)..\Application\$(Configuration)\www /y /s
     </Link>
     <PostBuildEvent>
       <Command>mkdir $(SolutionDir)..\Application\$(Configuration)\www
-xcopy $(SolutionDir)\www $(SolutionDir)..\Application\$(Configuration)\www /y /s /e</Command>
+xcopy $(SolutionDir)\www $(SolutionDir)..\Application\$(Configuration)\www /Y /E</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

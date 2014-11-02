@@ -37,21 +37,22 @@ protected:
 
 	static const CGameMode	m_Modes[3];
 	int						m_Mode;
-	bool					m_PassButtonSet;
-	SideIndex				m_PassButton;
+	bool					m_ServeButtonSet;
+	SideIndex				m_ServeSide;
 	std::string				m_MatchUuid;
 	CPlayerMatchData		m_Players[2];
+	std::string				m_SoundSet;
 
 	int GetSetsCompleted() const;	
-	int ButtonToPlayer(SideIndex button) const;
-	SideIndex PlayerToButton(int player) const;
 
 public:
 	CGameData();
 	void ToggleGameMode();
 	int  BallsToWin() const;
 	int  BallsToServe() const;
-	bool PlayerServes(int player) const;
+	bool PlayerServes(SideIndex side) const;
+	int SideToPlayer(SideIndex button) const;
+	SideIndex PlayerToSide(int player) const;
 
 	void SerializeState(Poco::JSON::Object& object) const;
 	std::string RandomName() const;
@@ -74,6 +75,8 @@ public:
 	bool IsSetFinished() const;
 	void StartSetContinueMatch();
 	void Reset();
+
+	std::string GetSoundSet() const;
 };
 
 //	Common partial implementation of game state.
@@ -373,11 +376,13 @@ bool CGameState::OnInputPress(SideIndex button, ButtonPressLength press, IGameCa
 	if (press == kButtonPressShort)
 	{
 		Data->AddPlayerPoint(button);
+		Callback->PlaySoundPointResult();
 	}
 	else
 	if (press == kButtonPressLong)
 	{
 		Data->SubtractPlayerPoint(button);
+		Callback->PlaySoundPointResult();
 	}
 	else
 	{
@@ -405,9 +410,9 @@ int CGameData::GetSetsCompleted() const
 	return m_Players[0].Sets + m_Players[1].Sets;
 }
 
-int CGameData::ButtonToPlayer(SideIndex button) const
+int CGameData::SideToPlayer(SideIndex button) const
 {
-	return (GetSetsCompleted() & 1) ^ (button ^ 1);
+	return (GetSetsCompleted() & 1) ^ button;
 }
 
 void CGameData::Reset()
@@ -423,9 +428,10 @@ void CGameData::Reset()
 		m_Players[player].Sets = 0;
 	}
 	m_Mode = 0;
-	m_PassButton = kSideOne;
-	m_PassButtonSet = false;
+	m_ServeSide = kSideOne;
+	m_ServeButtonSet = false;
 	m_MatchUuid = Poco::UUIDGenerator().createRandom().toString();
+	m_SoundSet = "en/computer";
 }
 
 void CGameData::StartSetContinueMatch()
@@ -453,31 +459,31 @@ bool CGameData::IsSetFinished() const
 
 void CGameData::SetServerSide(SideIndex button)
 {
-	m_PassButton = button;
-	m_PassButtonSet = true;
+	m_ServeSide = button;
+	m_ServeButtonSet = true;
 }
 
 void CGameData::SubtractPlayerPoint(SideIndex button)
 {
-	if (m_Players[ButtonToPlayer(button)].Points > 0)
+	if (m_Players[SideToPlayer(button)].Points > 0)
 	{
-		m_Players[ButtonToPlayer(button)].Points--;
+		m_Players[SideToPlayer(button)].Points--;
 	}
 }
 
 void CGameData::AddPlayerPoint(SideIndex button)
 {
-	m_Players[ButtonToPlayer(button)].Points++;
+	m_Players[SideToPlayer(button)].Points++;
 }
 
 void CGameData::SetPlayerIdAndName(SideIndex button, const std::string& Uuid, const std::string& Name)
 {
-	if (m_Players[ButtonToPlayer(static_cast<SideIndex>(button ^ 1))].Id == Uuid)
+	if (m_Players[SideToPlayer(static_cast<SideIndex>(button ^ 1))].Id == Uuid)
 	{
 		throw std::runtime_error("Unable to use same player id twice.");
 	}
-	m_Players[ButtonToPlayer(button)].Id = Uuid;
-	m_Players[ButtonToPlayer(button)].Name = Name;
+	m_Players[SideToPlayer(button)].Id = Uuid;
+	m_Players[SideToPlayer(button)].Name = Name;
 }
 
 int CGameData::GameMode() const
@@ -556,32 +562,33 @@ void CGameData::SerializeState(Poco::JSON::Object& object) const
 {
 	object.set("gameMode", m_Modes[m_Mode].ModeText);
 	Poco::JSON::Array::Ptr Players(new Poco::JSON::Array);
-	for (int playerIndex = 0; playerIndex < 2; ++playerIndex)
+	for (int side = 0; side < 2; ++side)
 	{
-		int ButtonId = PlayerToButton(playerIndex);
+		SideIndex	sideIndex = static_cast<SideIndex>(side);
+		int			playerIndex = SideToPlayer(sideIndex);
 		Poco::JSON::Object::Ptr	Player(new Poco::JSON::Object);
-		Player->set("name",		m_Players[ButtonId].Name);
-		Player->set("points",	m_Players[ButtonId].Points);
-		Player->set("sets",		m_Players[ButtonId].Sets);
-		Player->set("serves",	PlayerServes(playerIndex));
+		Player->set("name",		m_Players[playerIndex].Name);
+		Player->set("points",	m_Players[playerIndex].Points);
+		Player->set("sets",		m_Players[playerIndex].Sets);
+		Player->set("serves",	PlayerServes(sideIndex));
 		Players->add(Player);
 
 	}		
 	object.set("players", Players);
 }
 
-bool CGameData::PlayerServes(int player) const
+bool CGameData::PlayerServes(SideIndex sideIndex) const
 {
 	//	Determine player which serves
 	if ((m_Players[0].Points >= (BallsToWin() - 1)) && (m_Players[1].Points >= (BallsToWin() - 1)))
 	{
-		if (((((m_Players[0].Points + m_Players[1].Points) - ((BallsToWin() - 1) * 2)) + m_PassButton + player) % 2) == 0)
-			return m_PassButtonSet;
+		if (((((m_Players[0].Points + m_Players[1].Points) - ((BallsToWin() - 1) * 2)) + m_ServeSide + sideIndex) % 2) == 0)
+			return m_ServeButtonSet;
 	}
 	else
 	{
-		if (((((m_Players[0].Points + m_Players[1].Points) / BallsToServe()) + m_PassButton + player) % 2) == 0)
-			return m_PassButtonSet;
+		if (((((m_Players[0].Points + m_Players[1].Points) / BallsToServe()) + m_ServeSide + sideIndex) % 2) == 0)
+			return m_ServeButtonSet;
 	}
 	return false;
 }
@@ -610,9 +617,14 @@ CGameData::CGameData()
 	Reset();
 }
 
-SideIndex CGameData::PlayerToButton(int player) const
+SideIndex CGameData::PlayerToSide(int player) const
 {
-	return static_cast<SideIndex>((GetSetsCompleted() & 1) ^ (player ^ 1));
+	return static_cast<SideIndex>((GetSetsCompleted() & 1) ^ player);
+}
+
+std::string CGameData::GetSoundSet() const
+{
+	return m_SoundSet;
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -768,6 +780,11 @@ std::string CGameController::GetInterfaceState(const std::string& message)
 					result.set("Reload", true);
 					m_ReloadClient = false;
 				}
+				if (m_SoundsPlay == m_UpdateId)
+				{
+					result.set("Sounds", m_Sounds);
+					ResetSounds();
+				}
 				std::ostringstream str;
 				result.stringify(str);
 				return str.str();
@@ -828,6 +845,7 @@ CGameController::CGameController(SQLite::Database* Database)
 	m_Data.reset(new CGameData);
 	m_Timer.start(*this);
 	ResetToIdleState();
+	ResetSounds();
 }
 
 Poco::JSON::Object CGameController::HandleRpcCalls(Poco::JSON::Object& object)
@@ -1223,4 +1241,39 @@ void CGameController::RenameUser(const std::string& Id, const std::string& Name)
 	statement.bind(1, Name);
 	statement.bind(2, Id);
 	statement.exec();
+}
+
+void CGameController::ResetSounds()
+{
+	m_Sounds = new Poco::JSON::Array;
+	m_SoundsPlay = m_UpdateId;
+}
+
+void CGameController::AddSound(const std::string& sound)
+{
+	m_Sounds->add(Poco::Dynamic::Var("sounds/" + m_Data->GetSoundSet() + "/" + sound + ".mp3"));
+	m_SoundsPlay = m_UpdateId + 1;
+}
+
+void CGameController::AddPause(int miliseconds)
+{
+	m_Sounds->add(Poco::Dynamic::Var(miliseconds));
+	m_SoundsPlay = m_UpdateId + 1;
+}
+
+void CGameController::PlaySoundPointResult()
+{
+	ResetSounds();
+	//	skip zero - zero
+	if (m_Data->PlayerResult(0) == m_Data->PlayerResult(1) &&
+		m_Data->PlayerResult(0) == 0) {
+		return;
+	}
+	int Player = 0;
+	if (!m_Data->PlayerServes(m_Data->PlayerToSide(Player))) {
+		Player ^= 1;
+	}
+	AddSound(Poco::format("%i", m_Data->PlayerResult(Player)));
+	AddPause(200);
+	AddSound(Poco::format("%i", m_Data->PlayerResult(Player^1)));
 }

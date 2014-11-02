@@ -8,11 +8,74 @@ var UpdateData = {};
 var UpdateId = 0;
 
 var NumScoreTables = 3;
+var CurrentSound = undefined;
+
+var PlaySoundsQueue = [];
+var LoadedSounds = {};
 
 SetInfoText = function (text) {
     if (text != currentInfo) {
         currentInfo = text;
         $("#info").html(currentInfo);
+    }
+}
+
+WalkRequiredSounds = function (onFileNotLoadedCallback) {
+    var sounds = PlaySoundsQueue.slice();
+    while (sounds.length != 0) {
+        var Sound = sounds.shift();
+        if (typeof Sound != "string") {
+            Sound = sounds.shift();
+        }
+        if (LoadedSounds[Sound] === undefined) {
+            onFileNotLoadedCallback(Sound);
+        }
+    }
+}
+
+PlayNextSound = function () {
+    console.log("PlayNextSound");
+    if (PlaySoundsQueue.length) {
+        var Sound = PlaySoundsQueue.shift();
+        var Delay = 0;
+        if (typeof Sound == "string") {
+        } else {
+            Delay = Sound;
+            Sound = PlaySoundsQueue.shift();
+        }
+        console.log("Play sound" + Sound)
+        CurrentSound = createjs.Sound.play(Sound);
+        CurrentSound.addEventListener('failed', function () {
+            console.log("Failed to play sound");
+        });
+        CurrentSound.addEventListener('complete', function () {
+            PlayNextSound();
+        });
+        CurrentSound.play({ delay: Delay });
+    }
+    else {
+        CurrentSound = undefined;
+    }
+}
+
+PlaySounds = function (sounds) {
+    //  Stop any current sounds
+    PlaySoundsQueue = [];
+    if (CurrentSound !== undefined) {
+        CurrentSound.stop();
+        CurrentSound = undefined;
+    }
+    sounds = sounds || [];
+    PlaySoundsQueue = sounds;
+
+    var Complete = true;
+    WalkRequiredSounds(function (Sound) {
+        createjs.Sound.registerSound(Sound);
+        Complete = false;
+    });
+    if (Complete) {   
+    //  start playback immediately if all sounds are preloaded
+        PlayNextSound();
     }
 }
 
@@ -37,6 +100,13 @@ UpdateGameData = function (data) {
         $(screen + ".player0serves").html(data.players[0].serves ? '<div class="scoreBoardMiddlePasses symbol">●</div>' : '');
         $(screen + ".player1serves").html(data.players[1].serves ? '<div class="scoreBoardMiddlePasses symbol">●</div>' : '');
         SetInfoText(data.info);
+        //  play sounds if specified by server
+        if (data.Sounds !== undefined)  {
+            PlaySounds(data.Sounds);
+        } else {
+            PlaySounds([]);
+        }
+
         //  per screen special update
         UpdateData[data.screen](data, screenChanged);
     }
@@ -129,6 +199,21 @@ $(document).ready(function () {
     $(".screen").hide();
     DisplayPage("wait");
     RequestAndUpdatePageData();
+    createjs.Sound.addEventListener('fileload', function (event) {
+        var CompleteBefore = true;
+        WalkRequiredSounds(function (Sound) {
+            CompleteBefore = false;
+        });
+        LoadedSounds[event.src] = true;
+        var CompleteAfter = true;
+        WalkRequiredSounds(function (Sound) {
+            CompleteAfter = false;
+        });
+    //  If we have all sounds after and not all before play
+        if (CompleteAfter && !CompleteBefore) {
+            PlayNextSound();
+        }
+    });
 });
 
 function DisplayPage(newPage) {

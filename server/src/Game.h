@@ -67,6 +67,12 @@ public:
 	virtual std::vector<MatchResults> GetLastResultsForPlayers(const std::string& playerId1, const std::string& playerId2, int max) const abstract;
 	virtual std::vector<MatchResults> GetLastResults(int max) const abstract;
 	virtual std::pair<std::string, std::string> GetRandomPlayers() const abstract;
+
+	virtual void ResetSounds() abstract;
+	virtual void AddSound(const std::string& sound) abstract;
+	virtual void AddPause(int miliseconds) abstract;
+
+	virtual void PlaySoundPointResult() abstract;
 };
 
 class CGameController : public IGameController, public IGameCallback, Poco::Runnable
@@ -83,6 +89,8 @@ protected:
 	volatile unsigned int				m_UpdateId;				//!< Last update id
 
 	bool								m_ReloadClient;			//!< Force reload of one client
+	Poco::JSON::Array::Ptr				m_Sounds;				//!< Sounds to be played by client
+	unsigned int						m_SoundsPlay;			//!< Keep sounds over next gui update
 
 	//	Reset to beginning state
 	void ResetToIdleState();
@@ -130,6 +138,14 @@ protected:
 	Poco::JSON::Array::Ptr GetUsers();
 	void RenameUser(const std::string& Id, const std::string& Name);
 
+
+//	Sounds
+//	NOTE: Sounds are played ONLY at next frame (aka with UpdateId set equally m_SoundsPlay)
+	virtual void ResetSounds();
+	virtual void AddSound(const std::string& sound);
+	virtual void AddPause(int miliseconds);
+
+	virtual void PlaySoundPointResult();
 
 public:
 	CGameController(SQLite::Database* Database);
