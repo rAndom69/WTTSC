@@ -1,0 +1,93 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Table Tennis scoreboard Administration</title>
+    <meta charset="UTF-8">
+    <meta name="HandheldFriendly" content="true" />
+    <meta name="MobileOptimized" content="320" />
+    <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, width=device-width, user-scalable=no" />
+    <link rel="stylesheet" href="styles.css" type="text/css">
+    <link rel="stylesheet" href="/www/ThirdParty/jquery-ui.min.css" type="text/css">
+    <script src="/www/ThirdParty/jquery-1.11.1.min.js"></script>
+    <script src="/www/ThirdParty/jquery-ui.min.js"></script>
+    <script src="scripts.js"></script>
+    <script>
+        $(function () {
+            $("button").button();
+            $("#menu").accordion({ heightStyle: "content" });
+            ReloadLogons();
+            ReloadUsers();
+        });
+    </script>
+</head>
+<body>
+    <div id="menu">
+        <h3>Remote control</h3>
+        <div>
+            <table>
+                <tr><td colspan="3">Side #1</td></tr>
+                <tr>
+                    <td><button onclick='SendCommand({"Press":{"Side":0, "Time":500}});'>0.5s</button>
+                    </td>
+                    <td><button onclick='SendCommand({"Press":{"Side":0, "Time":1500}});'>1.5s</button>
+                    </td>
+                    <td><button onclick='SendCommand({"Press":{"Side":0, "Time":7000}});'>7s</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2"><input id="Name_1" type="text" />
+                    </td>
+                    <td><button onclick='SendCommand({"Name":{"Side":0, "Name":$("#Name_1").val()}});'>Name</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2"><input id="ID_1" type="text" />
+                    </td>
+                    <td><button onclick='SendCommand({"ID":{"Side":0, "ID":$("#ID_1").val()}});'>ID</button>
+                    </td>
+                </tr>
+            </table>
+            <table>
+                <tr><td colspan="3">Side #2</td></tr>
+                <tr>
+                    <td><button onclick='SendCommand({"Press":{"Side":1, "Time":500}});'>0.5s</button>
+                    </td>
+                    <td><button onclick='SendCommand({"Press":{"Side":1, "Time":1500}});'>1.5s</button>
+                    </td>
+                    <td><button onclick='SendCommand({"Press":{"Side":1, "Time":7000}});'>7s</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2"><input id="Name_2" type="text" />
+                    </td>
+                    <td><button onclick='SendCommand({"Name":{"Side":1, "Name":$("#Name_2").val()}});'>Name</button>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2"><input id="ID_2" type="text" />
+                    </td>
+                    <td><button onclick='SendCommand({"ID":{"Side":0, "ID":$("#ID_2").val()}});'>ID</button>
+                    </td>
+                </tr>
+            </table>
+        </div>
+            <h3>Login history
+            <button onclick="ReloadLogons();">Refresh</button>
+        </h3>
+        <div>
+            <table id="Logons" class="Table">
+            </table>
+        </div>
+            <h3>User management
+            <button onclick="ReloadUsers();">Refresh</button>
+        </h3>
+        <div id="UserManagement">
+            <table class="Table">
+                <tr><td>ID</td><td><select onchange="$('#UserName').val($('#UserId option:selected').attr('name'));" id="UserId" /></td></tr>
+                <tr><td>Name</td><td><input type="text" id="UserName" /></td></tr>
+            </table>
+            <button onclick="RenameUser($('#UserId').val(), $('#UserName').val());">Rename</button>
+        </div>
+    </div>
+</body>
+</html>

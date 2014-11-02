@@ -1,0 +1,46 @@
+
+body
+{
+    font-size: 1em;
+}
+
+input
+{
+    width: 100%;
+}
+
+select
+{
+    width: 100%;
+}
+
+button
+{
+    min-width: 5em;
+}
+
+#Logons tr:not(:first-child):hover
+{
+    background-color: Gray;
+}
+
+.Table
+{
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.Table td
+{
+    padding: 0.2em;
+}
+
+.Table tr:not(:first-child) td
+{
+    border-top: 2px solid white;
+}
+
+.Table tr td:not(:first-child)
+{
+    border-left: 2px solid white;
+}
