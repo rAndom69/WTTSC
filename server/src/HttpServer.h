@@ -9,6 +9,7 @@
 #include <Poco/Net/HTTPServer.h>
 #include <Poco/Net/ServerSocket.h>
 #include <Poco/Path.h>
+#include <Poco/Logger.h>
 #include <map>
 #include "IGame.h"
 
@@ -26,12 +27,12 @@ public:
 	virtual void handleRequest(Poco::Net::HTTPServerRequest &req, Poco::Net::HTTPServerResponse &resp) override;
 
 	static std::map<std::string, std::string> ContentTypes();
-	static const std::string URI;
 protected:
 	static std::string GetContentType(std::string extension);
 	static const std::map<std::string, std::string> ContentType;
 
-	Poco::Path m_wwwRoot;
+	Poco::Logger&	m_Log;
+	Poco::Path		m_wwwRoot;
 };
 
 class CRpcRequestHandler : public Poco::Net::HTTPRequestHandler
@@ -42,7 +43,9 @@ public:
 	virtual void handleRequest(Poco::Net::HTTPServerRequest &req, Poco::Net::HTTPServerResponse &resp) override;
 	static const std::string URI;
 protected:
-	std::shared_ptr<IGameController> m_Controller;
+
+	Poco::Logger&						m_Log;
+	std::shared_ptr<IGameController>	m_Controller;
 };
 
 class CStateRpcRequestHandler : public Poco::Net::HTTPRequestHandler
@@ -53,14 +56,17 @@ public:
 	virtual void handleRequest(Poco::Net::HTTPServerRequest &req, Poco::Net::HTTPServerResponse &resp) override;
 	static const std::string URI;
 protected:
-	std::shared_ptr<IGameController> m_Controller;
+
+	Poco::Logger&						m_Log;
+	std::shared_ptr<IGameController>	m_Controller;
 };
 
 class CHTTPRequestHandlerFactory : public Poco::Net::HTTPRequestHandlerFactory
 {
 protected:
-	Poco::Path m_wwwRoot;
-	std::shared_ptr<IGameController> m_Game;
+	Poco::Logger&						m_Log;
+	Poco::Path							m_wwwRoot;
+	std::shared_ptr<IGameController>	m_Game;
 
 public:
 	CHTTPRequestHandlerFactory(const Poco::Path& wwwRoot, std::shared_ptr<IGameController> game);

@@ -10,6 +10,7 @@
 #include <Poco/Thread.h>
 #include <Poco/Event.h>
 #include "../ThirdParty/Database.h"
+#include <Poco/Logger.h>
 
 enum ButtonPressLength
 {
@@ -78,7 +79,8 @@ public:
 class CGameController : public IGameController, public IGameCallback, Poco::Runnable
 {
 protected:
-	std::unique_ptr<IGameState>	m_State;
+	Poco::Logger&						m_Log;
+	std::unique_ptr<IGameState>			m_State;
 	std::unique_ptr<CGameData>			m_Data;
 	Poco::Mutex							m_Mutex;
 	Poco::Thread						m_Timer;

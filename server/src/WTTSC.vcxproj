@@ -14,7 +14,7 @@
     <ProjectGuid>{22D0D98A-B1C7-429D-96E2-CC41E629F705}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>TTC</RootNamespace>
-    <ProjectName>server</ProjectName>
+    <ProjectName>wttsc-server</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -91,6 +91,12 @@ xcopy $(SolutionDir)\www $(SolutionDir)..\Application\$(Configuration)\www /Y /E
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="..\..\www\admin\index.html" />
+    <None Include="..\..\www\admin\scripts.js" />
+    <None Include="..\..\www\admin\styles.css" />
+    <None Include="..\..\www\index.html" />
+    <None Include="..\..\www\scripts.js" />
+    <None Include="..\..\www\styles.css" />
     <None Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>

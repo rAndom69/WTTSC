@@ -1,13 +1,5 @@
 #!/usr/bin/python
-import requests
-import json
-import threading
-import Queue
-import time
-import logging
-import socket
-
-REQ = 0
+import requests, json, threading, Queue, time, logging, socket, traceback, logging
 
 #monkey patch no delay for sockets (we're sending little data so nagle would be counterproductive). shold help some
 original_connect = socket.socket.connect
@@ -22,6 +14,7 @@ socket.socket.connect = monkey_connect
 #commands are delivered to server asynchronously
 class RpcCommands :
     def __init__(self, uri) :
+        logging.debug("rpccommands initialization")
         self._quit = False;
         self._uri = uri
         self._queue = Queue.Queue()
@@ -29,11 +22,14 @@ class RpcCommands :
         self._thread.start()
 
     def close(self) :
+        logging.debug("rpccommands shutdown")
         self._quit = True
         self._thread.join()
 
     def sendCommand(self, command) :
-        self._queue.put(json.dumps({"command":command}))
+        message = json.dumps({"command":command})
+        logging.debug("command queud %s" % message)
+        self._queue.put(message)
 
     def sendButtonPress(self, index, time) :
         self.sendCommand({"Press":{"Side":index, "Time":time}});
@@ -43,15 +39,12 @@ class RpcCommands :
 
     #worker terminates without emptying queue (not really important to do it anyway)
     def worker(self) :
-        global REQ
         s = requests.session()  #doh. connection pooling only works within session
         while not self._quit :
             try :
-                json = self._queue.get(True, 1)
-                tm = time.time()
-                s.put(self._uri, data=json, timeout=1)
-                REQ += 1
-                tm = time.time() - tm;
+                message = self._queue.get(True, 1)
+                s.put(self._uri, data=message, timeout=1)
+                logging.debug("command sent %s" % message)
             except Queue.Empty :
                 continue
             except :
@@ -69,4 +62,3 @@ if __name__ == "__main__" :
         time.sleep(10);
     finally :
         commands.close();
-        print REQ

@@ -18,9 +18,33 @@
     <Filter Include="Source Files\Game">
       <UniqueIdentifier>{8df95140-6d57-44a9-b9fd-318884606fb7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="www">
+      <UniqueIdentifier>{15f1145b-1d70-4f65-9a30-ae9ee0e4dec6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="www\admin">
+      <UniqueIdentifier>{b241ccf2-8414-43c9-8987-86f9eff549d4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="ReadMe.txt" />
+    <None Include="..\..\www\index.html">
+      <Filter>www</Filter>
+    </None>
+    <None Include="..\..\www\scripts.js">
+      <Filter>www</Filter>
+    </None>
+    <None Include="..\..\www\styles.css">
+      <Filter>www</Filter>
+    </None>
+    <None Include="..\..\www\admin\index.html">
+      <Filter>www\admin</Filter>
+    </None>
+    <None Include="..\..\www\admin\scripts.js">
+      <Filter>www\admin</Filter>
+    </None>
+    <None Include="..\..\www\admin\styles.css">
+      <Filter>www\admin</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\ThirdParty\sqlite3.h">

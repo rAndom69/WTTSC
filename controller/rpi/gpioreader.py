@@ -1,7 +1,6 @@
 #!/usr/bin/python
-import time
+import time, signal, logging
 import RPi.GPIO as GPIO
-import signal
 
 DEBOUNCE_MILISEC = 20   #debounce time in miliseconds
 
@@ -33,8 +32,8 @@ def ReadGPIOEvents(inMap, dataCallback, runCallback) :
         if self._time != 0 :
           self._dataCallback(self._key, time_ms() - self._time)
           self._time = 0
-        
 
+  logging.debug("gpioreader initialization")
   inputPins = [];
   try :
     GPIO.setmode(GPIO.BOARD)
@@ -46,6 +45,7 @@ def ReadGPIOEvents(inMap, dataCallback, runCallback) :
       time.sleep(1)
 
   finally:
+    logging.debug("gpioreader shutdown")
     for pin in inputPins :
       pin.close()
     GPIO.cleanup()

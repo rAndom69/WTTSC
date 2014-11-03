@@ -144,6 +144,7 @@ public:
 class CIdleState : public ITemporaryCommonState
 {
 protected:
+	Poco::Logger&	m_Log;
 	int				m_ReaderSet;
 	std::vector<IGameCallback::MatchResults> 
 					m_ScoreTable;
@@ -242,7 +243,7 @@ bool CIdleState::OnInputId(SideIndex button, const std::string& Id, IGameCallbac
 	}
 	catch (std::exception& e)
 	{	//	errors during id init are ignored, does not reset game
-		std::cout << e.what() << std::endl;
+		m_Log.error(e.what());
 	}
 	return true;
 }
@@ -290,6 +291,7 @@ Poco::JSON::Object CIdleState::GetInterfaceState(const IGameCallback* Callback, 
 
 CIdleState::CIdleState(const IGameCallback* Callback) 
 	:	ITemporaryCommonState("idle", "Login via reader or short press any button to start game as guests. Long press any button to change game mode. Hold to reset.", TimeoutMs)
+	,	m_Log(Poco::Logger::get("Game.IdleState"))
 	,	m_ReaderSet(0)
 {
 	DisplayRandomStatistics(Callback);
@@ -532,29 +534,20 @@ std::string CGameData::PlayerId(int player) const
 
 std::string CGameData::RandomName() const
 {
-	switch (rand() % 20)
+	switch (rand() % 11)
 	{
 	default:
 	case 0:		return "Miyamoto Musashi";
 	case 1:		return "John Fitzgerald Kennedy";
-	case 2:		return "Leónidás I.";
-	case 3:		return "Iejasu Tokugawa";
-	case 4:		return "Julie Kapuletova";
-	case 5:		return "Antigoné";
-	case 6:		return "Sofoklés";
-	case 7:		return "????????";
-	case 8:		return "Friedrich Nietzsche";
-	case 9:		return "Sabina Spielrein";
+	case 2:		return "Iejasu Tokugawa";
+	case 3:		return "Sabina Spielrein";
+	case 4:		return "Carl Gustav Jung";
+	case 5:		return "Isaac Newton";
+	case 6:		return "Isaac Asimov";
+	case 7:		return "Dick Francis";
+	case 8:		return "Dale Carnegie";
+	case 9:		return "Friedrich Nietzsche";
 	case 10:	return "Albert Einstein";
-	case 11:	return "John Francis Kovář";
-	case 12:	return "sanggjä";
-	case 13:	return "Fiona";
-	case 14:	return "Carl Gustav Jung";
-	case 15:	return "Isaac Newton";
-	case 16:	return "Isaac Asimov";
-	case 17:	return "Karel Čapek";
-	case 18:	return "Dick Francis";
-	case 19:	return "Dale Carnegie";
 	};
 }
 
@@ -718,7 +711,7 @@ void CGameController::OnInputId(SideIndex button, const std::string& Id)
 	}
 	catch (std::exception& e)
 	{
-		std::cout << e.what() << std::endl;;
+		m_Log.error(e.what());
 		ResetToIdleState();
 	}
 }
@@ -743,7 +736,7 @@ void CGameController::OnInputPress(SideIndex button, int miliseconds)
 	}
 	catch (std::exception& e)
 	{
-		std::cout << e.what() << std::endl;;
+		m_Log.error(e.what());
 		ResetToIdleState();
 	}
 }
@@ -797,7 +790,7 @@ std::string CGameController::GetInterfaceState(const std::string& message)
 	}
 	catch (std::exception& e)
 	{
-		std::cout << e.what() << std::endl;;
+		m_Log.error(e.what());
 		return std::string();
 	}
 }
@@ -823,7 +816,7 @@ std::string CGameController::RpcCall(const std::string& command)
 	}
 	catch (std::exception& e)
 	{
-		std::cout << e.what() << std::endl;
+		m_Log.error(e.what());
 		return std::string();
 	}
 }
@@ -836,7 +829,8 @@ void CGameController::SetCurrentState(IGameState* newState)
 }
 
 CGameController::CGameController(SQLite::Database* Database)
-	:	m_Database(Database)
+	:	m_Log(Poco::Logger::get("Game"))
+	,	m_Database(Database)
 	,	m_StateChanged(false)
 	,	m_UpdateId(0)
 	,	m_ReloadClient(false)
@@ -895,7 +889,7 @@ Poco::JSON::Object CGameController::HandleRpcCalls(Poco::JSON::Object& object)
 		catch (std::exception& e)
 		{
 			result.set("error", e.what());
-			std::cout << e.what() << std::endl;
+			m_Log.error(e.what());
 		}
 	}
 
@@ -919,7 +913,7 @@ void CGameController::run()
 		}
 		catch (std::exception& e)
 		{
-			std::cout << e.what() << std::endl;
+			m_Log.error(e.what());
 			ResetToIdleState();
 		}
 	}
@@ -990,7 +984,7 @@ void CGameController::StoreCurrentGameResult()
 	}
 	catch (std::exception& e)
 	{
-		std::cout << e.what() << std::endl;;
+		m_Log.error(e.what());
 	}
 }
 
@@ -1013,7 +1007,7 @@ std::string CGameController::GetPlayerNameById(const std::string& Uid) const
 	}
 	catch (std::exception& e)
 	{
-		std::cout << e.what() << std::endl;
+		m_Log.error(e.what());
 	}
 	return std::string();
 }
@@ -1064,7 +1058,7 @@ CGameController::GetLastResultsForPlayers(const std::string& playerId1, const st
 	}
 	catch (std::exception& e)
 	{
-		std::cout << e.what() << std::endl;
+		m_Log.error(e.what());
 	}
 	return Results;
 }
@@ -1088,7 +1082,7 @@ CGameController::GetLastResults(int max) const
 	}
 	catch (std::exception& e)
 	{
-		std::cout << e.what() << std::endl;
+		m_Log.error(e.what());
 	}
 	return Results;
 }
@@ -1138,7 +1132,7 @@ std::pair<std::string, std::string> CGameController::GetRandomPlayers() const
 	}
 	catch (std::exception& e)
 	{
-		std::cout << e.what() << std::endl;
+		m_Log.error(e.what());
 	}
 	return Result;
 }
@@ -1251,7 +1245,7 @@ void CGameController::ResetSounds()
 
 void CGameController::AddSound(const std::string& sound)
 {
-	m_Sounds->add(Poco::Dynamic::Var("sounds/" + m_Data->GetSoundSet() + "/" + sound + ".mp3"));
+	m_Sounds->add(Poco::Dynamic::Var("/sounds/" + m_Data->GetSoundSet() + "/" + sound + ".mp3"));
 	m_SoundsPlay = m_UpdateId + 1;
 }
 

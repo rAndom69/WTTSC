@@ -1,10 +1,5 @@
 #!/usr/bin/python
-import struct
-import time
-import sys
-import os
-import select
-import signal
+import struct, time, sys, os, select, signal, logging
 
 #long int, long int, unsigned short, unsigned short, unsigned int
 FORMAT      = 'llHHI'
@@ -19,6 +14,8 @@ KEYCODE_RENTER  = 96
 
 #read keyboard events (from multiple input devices) and deliver keycodes to dataCallback
 def ReadKeyboardEvents(inMap, dataCallback, runCallback) :
+    logging.debug("idreader initialization")
+
     infile      = []
     data        = []
     indexToKey  = []
@@ -52,6 +49,7 @@ def ReadKeyboardEvents(inMap, dataCallback, runCallback) :
                         dataCallback(indexToKey[index], data[index])
                         data[index] = [];
     finally:
+        logging.debug("idreader shutdown")
         for f in infile :
             f.close()
 

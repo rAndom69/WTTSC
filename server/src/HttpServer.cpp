@@ -7,14 +7,12 @@
 #include <sstream>
 #include <iostream>
 
-const std::string
-CStaticFileRequestHandler::URI = "/www/";
-
 const std::map<std::string, std::string> 
 CStaticFileRequestHandler::ContentType = CStaticFileRequestHandler::ContentTypes();
 
 CStaticFileRequestHandler::CStaticFileRequestHandler(const Poco::Path& wwwRoot) 
-	:	m_wwwRoot(wwwRoot)
+	:	m_Log(Poco::Logger::get("HTTP.StaticFileRequestHandler"))
+	,	m_wwwRoot(wwwRoot)
 {
 }
 
@@ -48,13 +46,30 @@ CStaticFileRequestHandler::handleRequest(Poco::Net::HTTPServerRequest &req, Poco
 {
 	try
 	{
-		Poco::Path	relative(req.getURI().substr(URI.length()));
-		std::cout << relative.toString() << std::endl;
+		std::string URI = req.getURI();
+		m_Log.debug("URI requested %s", URI);
+		if (URI.length() == 0)
+		{	//	should not happen ever
+			URI = "/";
+		}
+		if (URI.back() == '/')
+		{	//	by default serve directory index.html
+			URI += "index.html";
+		}
+		if (URI[0] != '/') 
+		{
+			throw std::runtime_error("Unexpected URI format: " + URI);
+		}
+		URI = URI.substr(1);
+
+		Poco::Path	relative(URI);
+		m_Log.information("File requested %s", relative.toString());
 		Poco::Path	file(m_wwwRoot, relative);
 		if (!file.isFile() ||
 			!Poco::File(file).exists() ||
 			!Poco::File(file).canRead())
 		{
+			m_Log.error("File does not exist or is inaccessible: %s", relative.toString());
 			resp.setStatusAndReason(resp.HTTP_FORBIDDEN, resp.HTTP_REASON_FORBIDDEN);
 			resp.send();
 			return;
@@ -64,7 +79,7 @@ CStaticFileRequestHandler::handleRequest(Poco::Net::HTTPServerRequest &req, Poco
 	catch (std::exception& e)
 	{
 		resp.setStatusAndReason(resp.HTTP_INTERNAL_SERVER_ERROR, resp.HTTP_REASON_INTERNAL_SERVER_ERROR);
-		resp.send() << e.what() << std::endl;
+		m_Log.error(e.what());
 	}
 }
 
@@ -78,7 +93,8 @@ CBadRequestHandler::handleRequest(Poco::Net::HTTPServerRequest &req, Poco::Net::
 const std::string CRpcRequestHandler::URI = "/rpc/command";
 
 CRpcRequestHandler::CRpcRequestHandler(std::shared_ptr<IGameController> controller) 
-	:	m_Controller(controller)
+	:	m_Log(Poco::Logger::get("HTTP.RpcRequestHandler"))
+	,	m_Controller(controller)
 {
 }
 
@@ -92,12 +108,12 @@ void CRpcRequestHandler::handleRequest(Poco::Net::HTTPServerRequest &req, Poco::
 		{
 			params = std::string(std::istreambuf_iterator<char>(req.stream()), std::istreambuf_iterator<char>());
 		}
-		std::string Buffer = m_Controller->RpcCall(params);
-		resp.sendBuffer(Buffer.data(), Buffer.size());
+		std::string response = m_Controller->RpcCall(params);
+		resp.sendBuffer(response.data(), response.size());
 	}
 	catch (std::exception& e)
 	{
-		std::cout << e.what() << std::endl;
+		m_Log.error(e.what());
 		resp.setStatusAndReason(resp.HTTP_INTERNAL_SERVER_ERROR, resp.HTTP_REASON_INTERNAL_SERVER_ERROR);
 		resp.send();
 	}
@@ -106,7 +122,8 @@ void CRpcRequestHandler::handleRequest(Poco::Net::HTTPServerRequest &req, Poco::
 const std::string CStateRpcRequestHandler::URI = "/rpc/state";
 
 CStateRpcRequestHandler::CStateRpcRequestHandler(std::shared_ptr<IGameController> controller) 
-	:	m_Controller(controller)
+	:	m_Log(Poco::Logger::get("HTTP.StateRpcRequestHandler"))
+	,	m_Controller(controller)
 {
 }
 
@@ -118,20 +135,24 @@ void CStateRpcRequestHandler::handleRequest(Poco::Net::HTTPServerRequest &req, P
 		std::string params;
 		if (req.getMethod() == "PUT")
 		{
-			req.stream() >> params;
+			params = std::string(std::istreambuf_iterator<char>(req.stream()), std::istreambuf_iterator<char>());
+			m_Log.debug("Request: %s", params);
 		}
-		resp.send() << m_Controller->GetInterfaceState(params);
+		std::string response = m_Controller->GetInterfaceState(params);
+		m_Log.debug("Response: %s", response);
+		resp.sendBuffer(response.data(), response.size());
 	}
 	catch (std::exception& e)
 	{
-		std::cout << e.what() << std::endl;
+		m_Log.error(e.what());
 		resp.setStatusAndReason(resp.HTTP_INTERNAL_SERVER_ERROR, resp.HTTP_REASON_INTERNAL_SERVER_ERROR);
 		resp.send();
 	}
 }
 
 CHTTPRequestHandlerFactory::CHTTPRequestHandlerFactory(const Poco::Path& wwwRoot, std::shared_ptr<IGameController> game) 
-	:	m_wwwRoot(wwwRoot)
+	:	m_Log(Poco::Logger::get("HTTP.RequestFactory"))
+	,	m_wwwRoot(wwwRoot)
 	,	m_Game(game)
 {
 }
@@ -140,13 +161,9 @@ Poco::Net::HTTPRequestHandler*
 CHTTPRequestHandlerFactory::createRequestHandler(const Poco::Net::HTTPServerRequest &req)
 {
 	std::string Uri = req.getURI();
+	m_Log.debug(Uri);
 	std::transform(Uri.begin(), Uri.end(), Uri.begin(), ::tolower);
-	if (!strncmp(CStaticFileRequestHandler::URI.c_str(), Uri.c_str(), CStaticFileRequestHandler::URI.length()))
-	{
-		return new CStaticFileRequestHandler(m_wwwRoot);
-	}
-	else
-	if (!strncmp(CStateRpcRequestHandler::URI.c_str(), Uri.c_str(), CRpcRequestHandler::URI.length()))
+	if (!strncmp(CStateRpcRequestHandler::URI.c_str(), Uri.c_str(), CStateRpcRequestHandler::URI.length()))
 	{
 		return new CStateRpcRequestHandler(m_Game);
 	}
@@ -154,6 +171,10 @@ CHTTPRequestHandlerFactory::createRequestHandler(const Poco::Net::HTTPServerRequ
 	if (!strncmp(CRpcRequestHandler::URI.c_str(), Uri.c_str(), CRpcRequestHandler::URI.length()))
 	{
 		return new CRpcRequestHandler(m_Game);
+	}
+	else
+	{
+		return new CStaticFileRequestHandler(m_wwwRoot);
 	}
 	return new CBadRequestHandler;
 }

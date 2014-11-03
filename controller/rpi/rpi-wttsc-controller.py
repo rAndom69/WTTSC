@@ -4,13 +4,14 @@ from daemon import Daemon
 from eventwriter import RpcCommands
 from gpioreader import ReadGPIOEvents
 from idreader import ReadKeyboardEvents
+import config
  
 class MyDaemon(Daemon):
 
   def continueRunCallback(self) :
     return self._run
 
-  def Terminate(self) :
+  def Terminate(self, _signo, _stack_frame) :
     self._run = False
   
   def publishMessageId(self, key, id) :
@@ -24,7 +25,7 @@ class MyDaemon(Daemon):
   def runIDReader(self) :
     while self.continueRunCallback() :
       try :
-        ReadKeyboardEvents({"aa":"/dev/input/event0", 1:"/dev/input/event0"},
+        ReadKeyboardEvents(config.id_reader,
           self.publishMessageId, self.continueRunCallback)
       except :
         logging.error(traceback.format_exc())
@@ -33,16 +34,16 @@ class MyDaemon(Daemon):
   def runBtnReader(self) :
     while self.continueRunCallback() :
       try :
-        ReadGPIOEvents({0:5, 1:19},
+        ReadGPIOEvents(config.gpio_reader,
           self.publishMessageButton, self.continueRunCallback)
       except :
         logging.error(traceback.format_exc())
         continue
   
   def run(self):
-    self._commands = RpcCommands("http://192.168.0.100:9090/rpc/command")
+    logging.info("init")
+    self._commands = RpcCommands(config.rpc_uri)
     try:
-      logging.info("initialization")
       self._run = True
       #termination as daemon
       signal.signal(signal.SIGTERM, self.Terminate)
@@ -57,15 +58,16 @@ class MyDaemon(Daemon):
           time.sleep(1)         
       except KeyboardInterrupt:
         #termination from command-line session
-        self.Terminate()
+        self.Terminate(0, None)
     except:
       logging.error(traceback.format_exc())
     finally:
+      logging.info("shutdown")
       self._commands.close()
  
 if __name__ == "__main__":
   daemon = MyDaemon('/tmp/rpi-wttsc-controller.pid')
-  logging.basicConfig(level=logging.INFO)
+  logging.basicConfig(format='%(asctime)s %(message)s', filename='rpi-wttsc-controller.log', level=logging.DEBUG)
   if len(sys.argv) == 2:
     if 'start' == sys.argv[1]:
       daemon.start()
