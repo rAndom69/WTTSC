@@ -3,7 +3,7 @@ import time
 import RPi.GPIO as GPIO
 import signal
 
-DEBOUNCE_MILISEC = 10   #debounce time in miliseconds
+DEBOUNCE_MILISEC = 20   #debounce time in miliseconds
 
 def time_ms() :
   return time.time() * 1000
@@ -23,11 +23,11 @@ def ReadGPIOEvents(inMap, dataCallback, runCallback) :
       GPIO.remove_event_detect(self._pin)
 
     #invoke callback when button was pressed
-    def handleStateChange(self) :
+    def handleStateChange(self,pin) :
       #we should already get stable state here as GPIO should do debouncing
       #TODO check on real thing to find out how debouncing of GPIO works...
       #if it only sends first event and then ignores them we're fucked and this won't work well and we'll need to do our own debouncing and wait thread      
-      if GPIO.input(self._pin) :
+      if not GPIO.input(self._pin) :
         self._time = time_ms()
       else :
         if self._time != 0 :
