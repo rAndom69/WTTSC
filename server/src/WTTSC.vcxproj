@@ -113,6 +113,10 @@ xcopy $(SolutionDir)\www $(SolutionDir)..\Application\$(Configuration)\www /Y /E
     <ClInclude Include="Game.h" />
     <ClInclude Include="HttpServer.h" />
     <ClInclude Include="IGame.h" />
+    <ClInclude Include="Resources\ISoundResource.h" />
+    <ClInclude Include="Resources\ResourceCollection.h" />
+    <ClInclude Include="Resources\SoundResource.h" />
+    <ClInclude Include="Resources\SoundResourceCollection.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>

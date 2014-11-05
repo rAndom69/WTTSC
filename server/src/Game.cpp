@@ -7,6 +7,7 @@
 #include "../ThirdParty/Statement.h"
 #include "../ThirdParty/Transaction.h"
 #include <assert.h>
+#include "Resources/SoundResourceCollection.h"
 
 //	Represent single game data.
 //	Game is played between two playes and they must switch sides of table based on number of sets played
@@ -41,12 +42,13 @@ protected:
 	SideIndex				m_ServeSide;
 	std::string				m_MatchUuid;
 	CPlayerMatchData		m_Players[2];
-	std::string				m_SoundSet;
+	CSoundResourceCollection&				m_SoundResourceCollection;
+	std::shared_ptr<const CSoundResource>	m_SoundResource;
 
 	int GetSetsCompleted() const;	
 
 public:
-	CGameData();
+	CGameData(CSoundResourceCollection& soundResourceCollection);
 	void ToggleGameMode();
 	int  BallsToWin() const;
 	int  BallsToServe() const;
@@ -65,7 +67,6 @@ public:
 	//	This functions expect set ended, but new one did not start.
 	int IsPlayerVictorious(int player) const;
 
-
 	std::string MatchUuid() const;
 	int  GameMode() const;
 	void SetPlayerIdAndName(SideIndex button, const std::string& Uuid, const std::string& Name);
@@ -76,7 +77,9 @@ public:
 	void StartSetContinueMatch();
 	void Reset();
 
-	std::string GetSoundSet() const;
+	void SelectSoundResource();
+
+	std::shared_ptr<const CSoundResource> GetSoundResource();
 };
 
 //	Common partial implementation of game state.
@@ -433,7 +436,8 @@ void CGameData::Reset()
 	m_ServeSide = kSideOne;
 	m_ServeButtonSet = false;
 	m_MatchUuid = Poco::UUIDGenerator().createRandom().toString();
-	m_SoundSet = "en/computer";
+	
+	SelectSoundResource();
 }
 
 void CGameData::StartSetContinueMatch()
@@ -605,7 +609,8 @@ void CGameData::ToggleGameMode()
 	}
 }
 
-CGameData::CGameData()
+CGameData::CGameData(CSoundResourceCollection& soundResourceCollection)
+	:	m_SoundResourceCollection(soundResourceCollection)
 {
 	Reset();
 }
@@ -615,9 +620,21 @@ SideIndex CGameData::PlayerToSide(int player) const
 	return static_cast<SideIndex>((GetSetsCompleted() & 1) ^ player);
 }
 
-std::string CGameData::GetSoundSet() const
+std::shared_ptr<const CSoundResource> CGameData::GetSoundResource()
 {
-	return m_SoundSet;
+	return m_SoundResource;
+}
+
+void CGameData::SelectSoundResource()
+{
+	//	I expect this will be based on who plays...
+	//	For now just random
+	auto Begin = m_SoundResourceCollection.begin(), End = m_SoundResourceCollection.end();
+	size_t Size = End - Begin;
+	if (Size) 
+	{
+		m_SoundResource = *(Begin + (rand() % static_cast<int>(Size)));
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -828,15 +845,16 @@ void CGameController::SetCurrentState(IGameState* newState)
 	UpdateGui();
 }
 
-CGameController::CGameController(SQLite::Database* Database)
+CGameController::CGameController(SQLite::Database* Database, Poco::Path FSClientRoot)
 	:	m_Log(Poco::Logger::get("Game"))
 	,	m_Database(Database)
 	,	m_StateChanged(false)
 	,	m_UpdateId(0)
 	,	m_ReloadClient(false)
+	,	m_SoundResourceCollection(FSClientRoot)
 {
 	m_Quit = false;
-	m_Data.reset(new CGameData);
+	m_Data.reset(new CGameData(m_SoundResourceCollection));
 	m_Timer.start(*this);
 	ResetToIdleState();
 	ResetSounds();
@@ -1243,18 +1261,6 @@ void CGameController::ResetSounds()
 	m_SoundsPlay = m_UpdateId;
 }
 
-void CGameController::AddSound(const std::string& sound)
-{
-	m_Sounds->add(Poco::Dynamic::Var("/sounds/" + m_Data->GetSoundSet() + "/" + sound + ".mp3"));
-	m_SoundsPlay = m_UpdateId + 1;
-}
-
-void CGameController::AddPause(int miliseconds)
-{
-	m_Sounds->add(Poco::Dynamic::Var(miliseconds));
-	m_SoundsPlay = m_UpdateId + 1;
-}
-
 void CGameController::PlaySoundPointResult()
 {
 	ResetSounds();
@@ -1267,7 +1273,17 @@ void CGameController::PlaySoundPointResult()
 	if (!m_Data->PlayerServes(m_Data->PlayerToSide(Player))) {
 		Player ^= 1;
 	}
-	AddSound(Poco::format("%i", m_Data->PlayerResult(Player)));
-	AddPause(200);
-	AddSound(Poco::format("%i", m_Data->PlayerResult(Player^1)));
+	try
+	{
+		auto SoundResource = m_Data->GetSoundResource();
+		m_Sounds->add(Poco::Dynamic::Var(SoundResource->GetNumber(m_Data->PlayerResult(Player))));
+		m_Sounds->add(Poco::Dynamic::Var(200));
+		m_Sounds->add(Poco::Dynamic::Var(SoundResource->GetNumber(m_Data->PlayerResult(Player ^ 1))));
+		m_SoundsPlay = m_UpdateId + 1;
+	}
+	catch (std::exception& e)
+	{
+		m_Log.error(e.what());
+		ResetSounds();
+	}
 }

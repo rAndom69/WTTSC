@@ -24,6 +24,9 @@
     <Filter Include="www\admin">
       <UniqueIdentifier>{b241ccf2-8414-43c9-8987-86f9eff549d4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Resources">
+      <UniqueIdentifier>{42ab9487-6815-4d3f-b5d5-0155e7d10f0a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="ReadMe.txt" />
@@ -91,6 +94,18 @@
     </ClInclude>
     <ClInclude Include="..\ThirdParty\Exception.h">
       <Filter>ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources\ResourceCollection.h">
+      <Filter>Source Files\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources\SoundResource.h">
+      <Filter>Source Files\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources\SoundResourceCollection.h">
+      <Filter>Source Files\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources\ISoundResource.h">
+      <Filter>Source Files\Resources</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

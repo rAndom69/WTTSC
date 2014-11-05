@@ -2,6 +2,8 @@
 #pragma once
 
 #include <string>
+#include <Poco/Path.h>
+#include "Resources/ISoundResource.h"
 
 enum SideIndex
 {	//	Do not change. Players are used as indices

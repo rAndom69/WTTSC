@@ -64,7 +64,7 @@ int Application::main(const std::vector < std::string > & args)
 		Database.reset(new SQLite::Database(Poco::Path(executableDir, "db.sqlite").toString(), SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE));
 	//	Game controller
 		Log.debug("Game initialization");
-		std::shared_ptr<CGameController> Game(new CGameController(Database.release()));
+		std::shared_ptr<CGameController> Game(new CGameController(Database.release(), Poco::Path(executableDir).pushDirectory("www")));
 		Game->Initialize();
 	//	HTTP server (serve static files and rpc)
 		Log.debug("Server initialization");

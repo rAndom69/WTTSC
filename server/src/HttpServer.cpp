@@ -26,6 +26,7 @@ CStaticFileRequestHandler::ContentTypes()
 	contentTypes["gif"]	 = "image/gif";
 	contentTypes["png"]  = "image/png";
 	contentTypes["mp3"]  = "audio/mpeg";
+	contentTypes["wav"]  = "audio/wave";
 	return contentTypes;
 }
 

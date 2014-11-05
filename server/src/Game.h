@@ -9,8 +9,9 @@
 #include <Poco/JSON/Object.h>
 #include <Poco/Thread.h>
 #include <Poco/Event.h>
-#include "../ThirdParty/Database.h"
 #include <Poco/Logger.h>
+#include "Resources/SoundResourceCollection.h"
+#include "../ThirdParty/Database.h"
 
 enum ButtonPressLength
 {
@@ -69,10 +70,6 @@ public:
 	virtual std::vector<MatchResults> GetLastResults(int max) const abstract;
 	virtual std::pair<std::string, std::string> GetRandomPlayers() const abstract;
 
-	virtual void ResetSounds() abstract;
-	virtual void AddSound(const std::string& sound) abstract;
-	virtual void AddPause(int miliseconds) abstract;
-
 	virtual void PlaySoundPointResult() abstract;
 };
 
@@ -87,12 +84,15 @@ protected:
 	volatile bool						m_Quit;
 	std::unique_ptr<SQLite::Database>	m_Database;
 
-	Poco::Event							m_StateChanged;			//!< Event notification of game state change
-	volatile unsigned int				m_UpdateId;				//!< Last update id
+	Poco::Event							m_StateChanged;				//!< Event notification of game state change
+	volatile unsigned int				m_UpdateId;					//!< Last update id
 
-	bool								m_ReloadClient;			//!< Force reload of one client
-	Poco::JSON::Array::Ptr				m_Sounds;				//!< Sounds to be played by client
-	unsigned int						m_SoundsPlay;			//!< Keep sounds over next gui update
+	bool								m_ReloadClient;				//!< Force reload of one client
+	Poco::JSON::Array::Ptr				m_Sounds;					//!< Sounds to be played by client
+	unsigned int						m_SoundsPlay;				//!< Keep sounds over next GUI update
+
+	CSoundResourceCollection			m_SoundResourceCollection;	//!< Sound resource collection
+
 
 	//	Reset to beginning state
 	void ResetToIdleState();
@@ -143,14 +143,11 @@ protected:
 
 //	Sounds
 //	NOTE: Sounds are played ONLY at next frame (aka with UpdateId set equally m_SoundsPlay)
-	virtual void ResetSounds();
-	virtual void AddSound(const std::string& sound);
-	virtual void AddPause(int miliseconds);
-
+	void ResetSounds();
 	virtual void PlaySoundPointResult();
 
 public:
-	CGameController(SQLite::Database* Database);
+	CGameController(SQLite::Database* Database, Poco::Path FSClientRoot);
    ~CGameController();
 	virtual void OnInputId(SideIndex button, const std::string& Id) override;
 	virtual void OnInputPress(SideIndex button, int miliseconds) override;
