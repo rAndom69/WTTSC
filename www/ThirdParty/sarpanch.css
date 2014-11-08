@@ -1,0 +1,18 @@
+@font-face {
+  font-family: 'Sarpanch';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Sarpanch'), local('Sarpanch-Regular'), url(/ThirdParty/sarpanch400.woff) format('woff');
+}
+@font-face {
+  font-family: 'Sarpanch';
+  font-style: normal;
+  font-weight: 700;
+  src: local('Sarpanch Bold'), local('Sarpanch-Bold'), url(/ThirdParty/sarpanch700.woff) format('woff');
+}
+@font-face {
+  font-family: 'Sarpanch';
+  font-style: normal;
+  font-weight: 900;
+  src: local('Sarpanch Black'), local('Sarpanch-Black'), url(/ThirdParty/sarpanch900.woff) format('woff');
+}

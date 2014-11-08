@@ -293,7 +293,7 @@ Poco::JSON::Object CIdleState::GetInterfaceState(const IGameCallback* Callback, 
 
 
 CIdleState::CIdleState(const IGameCallback* Callback) 
-	:	ITemporaryCommonState("idle", "Login via reader or short press any button to start game as guests. Long press any button to change game mode. Hold to reset.", TimeoutMs)
+	:	ITemporaryCommonState("idle", "Login with reader or short press any button to start game as guests. Long press any button to change game mode.", TimeoutMs)
 	,	m_Log(Poco::Logger::get("Game.IdleState"))
 	,	m_ReaderSet(0)
 {
@@ -372,7 +372,7 @@ bool CGameState::Next(IGameCallback* Callback, CGameData* Data)
 }
 
 CGameState::CGameState() 
-	:	ITemporaryCommonState("game", "Short press to add point for specified player. Long press to subtract point.", TimeoutMs)
+	:	ITemporaryCommonState("game", "Short press to add point. Long press to subtract point.", TimeoutMs)
 {}
 
 bool CGameState::OnInputPress(SideIndex button, ButtonPressLength press, IGameCallback* Callback, CGameData* Data)
@@ -407,7 +407,7 @@ const CGameData::CGameMode CGameData::m_Modes[3] =
 {
 	{	11, 2, "Short set / 11 balls to win", kVictoryStandard },
 	{	21, 5, "Long set / 21 balls to win", kVictoryStandard },
-	{	11, 2, "Short set / 11 balls to win. Only last set result is counted for victory (Also known as Bara's mode).", kVictoryLast }
+	{	11, 2, "All in one / 11 balls to win.", kVictoryLast }
 };
 
 int CGameData::GetSetsCompleted() const

@@ -16,7 +16,7 @@ var LoadedSounds = {};
 SetInfoText = function (text) {
     if (text != currentInfo) {
         currentInfo = text;
-        $("#info").html(currentInfo);
+        $("#Information").html(currentInfo);
     }
 }
 
@@ -97,8 +97,8 @@ UpdateGameData = function (data) {
         $(screen + ".player1score").html(data.players[1].points);
         $(screen + ".player0sets").html(data.players[0].sets);
         $(screen + ".player1sets").html(data.players[1].sets);
-        $(screen + ".player0serves").html(data.players[0].serves ? '<div class="scoreBoardMiddlePasses symbol">●</div>' : '');
-        $(screen + ".player1serves").html(data.players[1].serves ? '<div class="scoreBoardMiddlePasses symbol">●</div>' : '');
+        $(screen + ".player0serves").html(data.players[0].serves ? '●' : '');
+        $(screen + ".player1serves").html(data.players[1].serves ? '●' : '');
         SetInfoText(data.info);
         //  play sounds if specified by server
         if (data.Sounds !== undefined)  {
@@ -155,7 +155,7 @@ UpdateData.idle = function (data, pageChanged) {
                 if (row == 0) {
                     html += '<td class="nowrap" rowspan="2">' + (new Date(match.datetime * 1000)).toLocaleDateString() + "</td>";
                 }
-                html += '<td class="Win symbol">' + (match.win[row] ? '★' : '') + "</td>";
+                html += '<td class="Win">' + (match.win[row] ? '<div class="glyphicon glyphicon-star"></div>' : '') + "</td>";
                 html += '<td class="Name nowrap">' + match.names[row] + "</td>";
                 var set;
                 for (set = 0; set < match.sets.length; ++set) {
