@@ -71,6 +71,7 @@ public:
 	virtual std::pair<std::string, std::string> GetRandomPlayers() const abstract;
 
 	virtual void PlaySoundPointResult() abstract;
+	virtual void PlayRandomSound() abstract;
 };
 
 class CGameController : public IGameController, public IGameCallback, Poco::Runnable
@@ -104,10 +105,10 @@ protected:
 	enum 
 	{
 		kShortPressTimeMilisecMin		= 0,
-		kLongPressTimeMilisecMin		= 1000,
-		kVeryLongPressTimeMilisecMin	= 5000,
+		kLongPressTimeMilisecMin		= 750,
+		kVeryLongPressTimeMilisecMin	= 3000,
 
-		kConnectionTimeout				= 10 * 1000,
+		kConnectionTimeout				= 60 * 1000,
 	};
 
 	//	Threaded loop for ticking
@@ -144,7 +145,8 @@ protected:
 //	Sounds
 //	NOTE: Sounds are played ONLY at next frame (aka with UpdateId set equally m_SoundsPlay)
 	void ResetSounds();
-	virtual void PlaySoundPointResult();
+	virtual void PlaySoundPointResult() override;
+	virtual void PlayRandomSound() override;
 
 public:
 	CGameController(SQLite::Database* Database, Poco::Path FSClientRoot);

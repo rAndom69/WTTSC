@@ -13,11 +13,38 @@ var CurrentSound = undefined;
 var PlaySoundsQueue = [];
 var LoadedSounds = {};
 
+var TimeoutInSeconds = undefined;
+var TimeoutIntervalId = undefined
+
+TimeoutHandler = function () {
+    if (TimeoutInSeconds !== undefined) {
+        TimeoutInSeconds -= 1
+        UpdateTimeout();
+    }
+}
+
+UpdateTimeout = function () {
+    timeout = "";
+    if (TimeoutInSeconds !== undefined) {
+        if (TimeoutInSeconds <= 600) {
+            timeout += TimeoutInSeconds;
+        }
+    }
+    $("#Timeout").html(timeout);
+}
+
 SetInfoText = function (text) {
     if (text != currentInfo) {
         currentInfo = text;
-        $("#Information").html(currentInfo);
+        $("#InformationText").html(currentInfo);
     }
+    if (text == "") {
+        $("#Information").hide()
+    }
+    else {
+        $("#Information").show()
+    }
+    UpdateTimeout();
 }
 
 WalkRequiredSounds = function (onFileNotLoadedCallback) {
@@ -85,12 +112,25 @@ UpdateGameData = function (data) {
         return;
     }
 
+    TimeoutInSeconds = data.TimeoutInSeconds;
+    //  restart interval. current number should be more precise
+    UpdateTimeout();
+    clearInterval(TimeoutIntervalId);
+    TimeoutIntervalId = setInterval(TimeoutHandler, 1000);
+
     if (UpdateId != data.UpdateId) {
         //  update only current screen, looks shitty if during animation data in previous screen is updated
         var screenChanged = DisplayPage(data.screen)
+
+        //  per screen special update
+        if (data.screen in UpdateData) {
+            UpdateData[data.screen](data, screenChanged);
+        }
+
         var screen = "#" + data.screen + " ";
         UpdateId = data.UpdateId;
         $(screen + ".gameMode").html(data.gameMode);
+        $(screen + ".soundSetName").html(data.soundSetName);
         $(screen + ".player0name").html(data.players[0].name);
         $(screen + ".player1name").html(data.players[1].name);
         $(screen + ".player0score").html(data.players[0].points);
@@ -101,14 +141,11 @@ UpdateGameData = function (data) {
         $(screen + ".player1serves").html(data.players[1].serves ? '●' : '');
         SetInfoText(data.info);
         //  play sounds if specified by server
-        if (data.Sounds !== undefined)  {
+        if (data.Sounds !== undefined) {
             PlaySounds(data.Sounds);
         } else {
             PlaySounds([]);
         }
-
-        //  per screen special update
-        UpdateData[data.screen](data, screenChanged);
     }
 }
 
@@ -134,6 +171,20 @@ RandomEffectForPage = function () {
         case 2: return [{ name: "puff", parameters: {} },
                         { name: "fade", parameters: {}}];
     };
+}
+
+UpdateData.configuration = function (data, pageChanged) {
+    if (data.configuration) {
+        var html = "<table>";
+        var Configuration = data.configuration;
+        var index;
+        for (index = 0; index < Configuration.length; ++index) {
+            var option = Configuration[index];
+            html += '<tr' + (option.active ? ' class="selected"' : "") + '><td>' + option.name + '</td><td><span class="' + option.replace + '"></span></td></tr>';
+        }
+        html += "</table>";
+        $("#configuration").html(html);
+    }
 }
 
 UpdateData.idle = function (data, pageChanged) {
@@ -186,19 +237,11 @@ UpdateData.idle = function (data, pageChanged) {
     }
 }
 
-UpdateData.game = function (data) {
-}
-
-UpdateData.wait = function (data) {
-}
-
-UpdateData.empty = function (data) {
-}
-
 $(document).ready(function () {
     $(".screen").hide();
     DisplayPage("wait");
     RequestAndUpdatePageData();
+    TimeoutIntervalId = setInterval(TimeoutHandler, 1000);
     createjs.Sound.addEventListener('fileload', function (event) {
         var CompleteBefore = true;
         WalkRequiredSounds(function (Sound) {
@@ -209,7 +252,7 @@ $(document).ready(function () {
         WalkRequiredSounds(function (Sound) {
             CompleteAfter = false;
         });
-    //  If we have all sounds after and not all before play
+        //  If we have all sounds after and not all before play
         if (CompleteAfter && !CompleteBefore) {
             PlayNextSound();
         }

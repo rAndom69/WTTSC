@@ -28,7 +28,7 @@ class CSoundResource : public ISoundResource
 			}
 			++Extension;
 		}
-		throw std::runtime_error("Sound resource not found [" + Name + "]");
+		throw Poco::FileNotFoundException("Sound resource not found [" + Name + "]");
 	}
 	
 public:
@@ -40,9 +40,35 @@ public:
 	{
 	}
 
-	virtual std::string GetNumber(int Number) const override
+	virtual std::string GetNumber(int Number, bool IntonationDown) const override
+	{	//	Try to find intonation down resource. If not found try intonation up
+		try
+		{
+			return GetSoundFile(Poco::format(IntonationDown ? "%i@" : "%i", Number));
+		}
+		catch (Poco::FileNotFoundException&)
+		{
+			if (IntonationDown)
+			{
+				return GetSoundFile(Poco::format("%i", Number));
+			}
+			throw;
+		}		
+	}
+
+	virtual std::string GetUnique() const override
 	{
-		return GetSoundFile(Poco::format("%i", Number));
+		return m_ClientPath;
+	}
+
+	virtual std::string GetLanguage() const override
+	{
+		return m_Language;
+	}
+
+	virtual std::string GetName() const override
+	{
+		return m_Name;
 	}
 };
 

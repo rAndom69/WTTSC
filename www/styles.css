@@ -5,6 +5,7 @@ body
     overflow: hidden;
     font-weight: 700;
     line-height: 1;
+    background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAChJREFUeNpiPHPmDAMMGBsbw9lMDDgA6RKM%2F%2F%2F%2Fh3POnj1LCzsAAgwAQtYIcFfEyzkAAAAASUVORK5CYII%3D") repeat scroll 0 0 rgba(0, 0, 0, 0);    
 }
 
 .screen
@@ -14,18 +15,17 @@ body
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #f0f0f0;
-}
-
-.inline
-{
-    display: inline;
 }
 
 #idle
 {
     font-size: 3vh;
     text-shadow: 0.1vw 0.1vw 0.1vw Black;
+}
+
+#screensaver
+{
+    background-color: Black;
 }
 
 .scoreTableSize, .scoreTable
@@ -36,6 +36,7 @@ body
     bottom: 0;
     position: fixed;
     font-weight: 700;
+    padding: 3vh;
 }
 
 .scoreTable
@@ -52,7 +53,8 @@ body
 {
     vertical-align: middle;
     text-align: center;
-    padding: 1vh;
+    padding: 0.5vh;
+    font-size: 4vh;
     font-weight: 700;
 }
 
@@ -128,42 +130,39 @@ body
     white-space: nowrap;
 }
 
-.GradientBlue1
+.GradientBlueToWhite
 {
-    background: #0277ed;
-    background: -moz-linear-gradient(top,  #0277ed 0%, #9cc4ed 100%);
-    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#0277ed), color-stop(100%,#9cc4ed));
-    background: -webkit-linear-gradient(top,  #0277ed 0%,#9cc4ed 100%);
-    background: -o-linear-gradient(top,  #0277ed 0%,#9cc4ed 100%);
-    background: -ms-linear-gradient(top,  #0277ed 0%,#9cc4ed 100%);
-    background: linear-gradient(to bottom,  #0277ed 0%,#9cc4ed 100%);
-    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#0277ed', endColorstr='#9cc4ed',GradientType=0 );
+    background: -moz-linear-gradient(top,  rgba(20,76,127,0.7) 0%, rgba(255,255,255,0.7) 100%);
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(20,76,127,0.7)), color-stop(100%,rgba(255,255,255,0.7)));
+    background: -webkit-linear-gradient(top,  rgba(20,76,127,0.7) 0%,rgba(255,255,255,0.7) 100%);
+    background: -o-linear-gradient(top,  rgba(20,76,127,0.7) 0%,rgba(255,255,255,0.7) 100%);
+    background: -ms-linear-gradient(top,  rgba(20,76,127,0.7) 0%,rgba(255,255,255,0.7) 100%);
+    background: linear-gradient(to bottom,  rgba(20,76,127,0.7) 0%,rgba(255,255,255,0.7) 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#f2144c7f', endColorstr='#f2ffffff',GradientType=0 );
 }
 
 .GradientBlue
 {
-    background: #3b679e;
-    background: -moz-linear-gradient(top,  #3b679e 0%, #2b88d9 50%, #207cca 51%, #7db9e8 100%);
-    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#3b679e), color-stop(50%,#2b88d9), color-stop(51%,#207cca), color-stop(100%,#7db9e8));
-    background: -webkit-linear-gradient(top,  #3b679e 0%,#2b88d9 50%,#207cca 51%,#7db9e8 100%);
-    background: -o-linear-gradient(top,  #3b679e 0%,#2b88d9 50%,#207cca 51%,#7db9e8 100%);
-    background: -ms-linear-gradient(top,  #3b679e 0%,#2b88d9 50%,#207cca 51%,#7db9e8 100%);
-    background: linear-gradient(to bottom,  #3b679e 0%,#2b88d9 50%,#207cca 51%,#7db9e8 100%);
-    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#3b679e', endColorstr='#7db9e8',GradientType=0 );
+    background: -moz-linear-gradient(top,  rgba(20,76,127,0.7) 0%, rgba(47,108,161,0.7) 50%, rgba(27,56,86,0.7) 100%);
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(20,76,127,0.7)), color-stop(50%,rgba(47,108,161,0.7)), color-stop(100%,rgba(27,56,86,0.7)));
+    background: -webkit-linear-gradient(top,  rgba(20,76,127,0.7) 0%,rgba(47,108,161,0.7) 50%,rgba(27,56,86,0.7) 100%);
+    background: -o-linear-gradient(top,  rgba(20,76,127,0.7) 0%,rgba(47,108,161,0.7) 50%,rgba(27,56,86,0.7) 100%);
+    background: -ms-linear-gradient(top,  rgba(20,76,127,0.7) 0%,rgba(47,108,161,0.7) 50%,rgba(27,56,86,0.7) 100%);
+    background: linear-gradient(to bottom,  rgba(20,76,127,0.7) 0%,rgba(47,108,161,0.7) 50%,rgba(27,56,86,0.7) 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#f2144c7f', endColorstr='#f21b3856',GradientType=0 );
 }
 
-.GradientRed
+.GradientRed,
+#configuration > table tr.selected
 {
-    background: #f3c5bd;
-    background: -moz-linear-gradient(top,  #f3c5bd 0%, #e86c57 50%, #ea2803 51%, #ff6600 75%, #c72200 100%);
-    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#f3c5bd), color-stop(50%,#e86c57), color-stop(51%,#ea2803), color-stop(75%,#ff6600), color-stop(100%,#c72200));
-    background: -webkit-linear-gradient(top,  #f3c5bd 0%,#e86c57 50%,#ea2803 51%,#ff6600 75%,#c72200 100%);
-    background: -o-linear-gradient(top,  #f3c5bd 0%,#e86c57 50%,#ea2803 51%,#ff6600 75%,#c72200 100%);
-    background: -ms-linear-gradient(top,  #f3c5bd 0%,#e86c57 50%,#ea2803 51%,#ff6600 75%,#c72200 100%);
-    background: linear-gradient(to bottom,  #f3c5bd 0%,#e86c57 50%,#ea2803 51%,#ff6600 75%,#c72200 100%);
-    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#f3c5bd', endColorstr='#c72200',GradientType=0 );
+    background: -moz-linear-gradient(top,  rgba(165,18,24,0.7) 0%, rgba(188,71,71,0.7) 50%, rgba(104,32,39,0.85) 100%);
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(165,18,24,0.7)), color-stop(50%,rgba(188,71,71,0.7)), color-stop(100%,rgba(104,32,39,0.85)));
+    background: -webkit-linear-gradient(top,  rgba(165,18,24,0.7) 0%,rgba(188,71,71,0.7) 50%,rgba(104,32,39,0.85) 100%);
+    background: -o-linear-gradient(top,  rgba(165,18,24,0.7) 0%,rgba(188,71,71,0.7) 50%,rgba(104,32,39,0.85) 100%);
+    background: -ms-linear-gradient(top,  rgba(165,18,24,0.7) 0%,rgba(188,71,71,0.7) 50%,rgba(104,32,39,0.85) 100%);
+    background: linear-gradient(to bottom,  rgba(165,18,24,0.7) 0%,rgba(188,71,71,0.7) 50%,rgba(104,32,39,0.85) 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#f2a51218', endColorstr='#d9682027',GradientType=0 );
 }
-
 
 /* GAME */
 .Scoreboard
@@ -180,6 +179,8 @@ body
     text-align: center;
     color: White;
     position: relative;
+    border-top: 0;
+    border-bottom: 0;
 }
 
 .ScoreboardLargeColumn .player0name,
@@ -188,7 +189,17 @@ body
     position: absolute;
     font-size: 3vw;
     top: 0;
+    width: 50vw;
+    overflow: hidden;
+}
+
+.ScoreboardLargeColumn .player0name
+{
     left: 0;
+}
+
+.ScoreboardLargeColumn .player1name
+{
     right: 0;
 }
 
@@ -205,33 +216,48 @@ body
     font-size: 10vw;
     text-align: center;
     color: White;
+    border-top: 0;
+    border-bottom: 0;
 }
 
 .ScoreboardSmallColumn > div
 {
     height: 50%;
-    line-height: 50vh;  /* kinda misuse as we're expecting we'll take 50% height */
+    line-height: 49vh;  /* kinda misuse as we're expecting we'll take 50% height, 49% only otherwise there is slight glitch... */
 }
 
-/* GENERAL */
-table
+/* CONFIGURATION */
+
+#configuration > table
 {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
+    height: auto;
+    margin: 1vw;
+    padding: 0.5vh;
+    font-size: 3vh;
+    font-weight: 700;
+    border: 0;
+    margin: 3vh;
+    color: White;
+    text-shadow: 0.1vw 0.1vw 0.1vw Black;
 }
 
-.center256x256
+#configuration > table tr td
 {
-  width: 256px;
-  height: 256px;
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  margin-top: -128px;
-  margin-left: -128px;      
+    padding: 0.5vh;
+    vertical-align: middle;
 }
+
+#configuration > table tr.selected
+{
+    font-size: 4vh;
+}
+
+#configuration > table tr td:first-child
+{
+    width: 30%;
+}
+
+/* STATUS BAR */
 
 #Information
 {
@@ -249,3 +275,36 @@ table
     line-height: 1;
     overflow: hidden;
 }
+
+#InformationText
+{
+    text-align: left;
+    overflow: hidden;
+}
+
+#Timeout
+{
+    text-align: right;
+}
+
+/* GENERAL */
+table
+{
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border-collapse: collapse;
+}
+
+.center256x256
+{
+  width: 256px;
+  height: 256px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  margin-top: -128px;
+  margin-left: -128px;      
+}
+

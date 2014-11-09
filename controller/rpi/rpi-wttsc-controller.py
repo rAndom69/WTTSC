@@ -1,8 +1,8 @@
 #!/usr/bin/python
-import sys, time, threading, signal, hashlib, array, traceback, logging
+import sys, time, threading, signal, hashlib, array, traceback, logging, logging.handlers
 from daemon import Daemon
 from eventwriter import RpcCommands
-from gpioreader import ReadGPIOEvents
+from gpiopollreader import ReadGPIOEvents
 from idreader import ReadKeyboardEvents
 import config
  
@@ -66,8 +66,15 @@ class MyDaemon(Daemon):
       self._commands.close()
  
 if __name__ == "__main__":
+  logger = logging.getLogger('')
+  logger.setLevel(logging.DEBUG)
+  handler = logging.handlers.RotatingFileHandler('rpi-wttsc-controller.log',  maxBytes=1048576, backupCount=1)
+#  handler = logging.StreamHandler()
+  handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+  logger.addHandler(handler)
+  logger.info("create daemon")
   daemon = MyDaemon('/tmp/rpi-wttsc-controller.pid')
-  logging.basicConfig(format='%(asctime)s %(message)s', filename='rpi-wttsc-controller.log', level=logging.DEBUG)
+#logging.basicConfig(format='%(asctime)s %(message)s', filename='rpi-wttsc-controller.log', level=logging.DEBUG)
   if len(sys.argv) == 2:
     if 'start' == sys.argv[1]:
       daemon.start()

@@ -75,9 +75,11 @@ public:
 	void SetServerSide(SideIndex button);
 	bool IsSetFinished() const;
 	void StartSetContinueMatch();
-	void Reset();
+	void ResetGame();
+	void ResetConfiguration();
 
 	void SelectSoundResource();
+	void ToggleSoundResource();
 
 	std::shared_ptr<const CSoundResource> GetSoundResource();
 };
@@ -110,6 +112,7 @@ public:
 	virtual bool OnTick(IGameCallback* Callback, CGameData* Data);
 	void ResetTimeout(int TimeoutMilisec);
 	virtual bool Next(IGameCallback* Callback, CGameData* Data) abstract;
+	virtual Poco::JSON::Object GetInterfaceState(const IGameCallback* Callback, const CGameData* Data) override;
 };
 
 //	After one of players won, this state is shortly displayed to show message
@@ -143,6 +146,71 @@ public:
 	virtual bool OnInputPress(SideIndex button, ButtonPressLength press, IGameCallback* Callback, CGameData* Data);
 };
 
+class CScreenSaverState : public ICommonState
+{
+	Poco::Logger&	m_Log;
+public:
+
+	CScreenSaverState();
+	virtual bool OnInputPress(SideIndex button, ButtonPressLength press, IGameCallback* Callback, CGameData* Data) override;
+};
+
+class CGameConfigurationState : public ITemporaryCommonState
+{
+protected:
+	enum
+	{
+		TimeoutMs			= 120*1000,
+	};
+
+	enum ConfigurationType
+	{
+		kGameMode,
+		kSoundSet,
+		kDone,
+	};
+
+	ConfigurationType	m_ConfigurationType;
+
+public:
+
+	CGameConfigurationState();
+	virtual bool Next(IGameCallback* Callback, CGameData* Data);
+	virtual Poco::JSON::Object GetInterfaceState(const IGameCallback* Callback, const CGameData* Data) override
+	{
+		Poco::JSON::Object Result = ITemporaryCommonState::GetInterfaceState(Callback, Data);
+		Poco::JSON::Array::Ptr	Configurations(new Poco::JSON::Array);
+		for (int idx = 0; idx <= kDone; ++idx)
+		{
+			std::string Name, Replace;
+			switch (idx)
+			{
+			case kGameMode:
+				Name = "Rules";
+				Replace = "gameMode";
+				break;
+			case kSoundSet:
+				Name = "Sound set";
+				Replace = "soundSetName";
+				break;
+			case kDone:
+				Name = "Done";
+				break;
+			};
+			Poco::JSON::Object::Ptr Node(new Poco::JSON::Object);
+			Node->set("name", Name);
+			if (m_ConfigurationType == idx)
+			{
+				Node->set("active", true);
+			}
+			Node->set("replace", Replace);
+			Configurations->add(Node);
+		}
+		Result.set("configuration", Configurations);
+		return Result;
+	}
+	virtual bool OnInputPress(SideIndex button, ButtonPressLength press, IGameCallback* Callback, CGameData* Data);
+};
 
 class CIdleState : public ITemporaryCommonState
 {
@@ -153,16 +221,25 @@ protected:
 					m_ScoreTable;
 	std::string		m_ScoreTableText;
 	std::string		m_ScoreTableId;
+	int				m_ResetsToScreenSaver;
 	
 	enum
 	{
-		MaxMatchForStatistics = 18,		//!<	Number of matches displayed in statistics
-		TimeoutMs = 20 * 1000,	//!<	After this timeout screen is reset/other statistics displayed.
-								//!<	Timeout is reset on any input
+		MaxMatchForStatistics	= 18,							//!<	Number of matches displayed in statistics
+#ifdef _DEBUG
+		TimeoutMs				= 20 * 1000,
+		ResetsToScreenSaver		= (60 * 1000) / TimeoutMs,
+#else
+		TimeoutMs				= 60 * 1000,					//!<	After this timeout screen is reset/other statistics displayed.
+																//!<	Timeout is reset on any input
+		ResetsToScreenSaver		= (10 * 60 * 1000) / TimeoutMs,	//!<	Number of resets before screen saver is run
+#endif
 	};
 	void DisplayStatistics(const std::vector<IGameCallback::MatchResults>& Statistics);
 	void DisplayStatisticsForPlayers(const IGameCallback* Callback, const std::string& playerId1, const std::string& playerId2);
 	void DisplayRandomStatistics(const IGameCallback* Callback);
+	void ResetTimeout();
+
 
 public:
 	CIdleState(const IGameCallback* Callback);
@@ -176,19 +253,27 @@ public:
 
 bool CIdleState::Next(IGameCallback* Callback, CGameData* Data)
 {	//	Reset only game (only due to logout) and change highscore table
-	ResetTimeout(TimeoutMs);
-	m_ReaderSet = 0;
-	Data->Reset();
-	DisplayRandomStatistics(Callback);
+	ITemporaryCommonState::ResetTimeout(TimeoutMs);
+	if (!m_ResetsToScreenSaver--)
+	{
+		Data->ResetConfiguration();
+		Callback->SetCurrentState(new CScreenSaverState);
+	}
+	else
+	{
+		m_ReaderSet = 0;
+		Data->ResetGame();
+		DisplayRandomStatistics(Callback);
+	}
 	return true;
 }
 
 bool CIdleState::OnInputPress(SideIndex button, ButtonPressLength press, IGameCallback* Callback, CGameData* Data)
 {
-	ResetTimeout(TimeoutMs);
+	ResetTimeout();
 	if (press == kButtonPressLong)
 	{
-		Data->ToggleGameMode();
+		Callback->SetCurrentState(new CGameConfigurationState);
 	}
 	else
 	if (press == kButtonPressShort)
@@ -204,7 +289,7 @@ bool CIdleState::OnInputPress(SideIndex button, ButtonPressLength press, IGameCa
 
 bool CIdleState::OnInputId(SideIndex button, const std::string& Id, IGameCallback* Callback, CGameData* Data)
 {
-	ResetTimeout(TimeoutMs);
+	ResetTimeout();
 	try
 	{	//	support logon with single chip reader
 		//	if there is already someone logged on, we'll simply logon other player
@@ -253,7 +338,7 @@ bool CIdleState::OnInputId(SideIndex button, const std::string& Id, IGameCallbac
 
 Poco::JSON::Object CIdleState::GetInterfaceState(const IGameCallback* Callback, const CGameData* Data)
 {
-	Poco::JSON::Object object = ICommonState::GetInterfaceState(Callback, Data);
+	Poco::JSON::Object object = ITemporaryCommonState::GetInterfaceState(Callback, Data);
 	if (m_ScoreTable.size())
 	{
 		Poco::JSON::Array::Ptr Matches(new Poco::JSON::Array);
@@ -293,9 +378,10 @@ Poco::JSON::Object CIdleState::GetInterfaceState(const IGameCallback* Callback, 
 
 
 CIdleState::CIdleState(const IGameCallback* Callback) 
-	:	ITemporaryCommonState("idle", "Login with reader or short press any button to start game as guests. Long press any button to change game mode.", TimeoutMs)
+	:	ITemporaryCommonState("idle", "Login with reader or short press to start game as guests. Long press to change configuration.", TimeoutMs)
 	,	m_Log(Poco::Logger::get("Game.IdleState"))
 	,	m_ReaderSet(0)
+	,	m_ResetsToScreenSaver(ResetsToScreenSaver)
 {
 	DisplayRandomStatistics(Callback);
 }
@@ -351,6 +437,12 @@ void CIdleState::DisplayStatistics(const std::vector<IGameCallback::MatchResults
 	m_ScoreTable = Statistics;
 }
 
+void CIdleState::ResetTimeout()
+{
+	m_ResetsToScreenSaver = ResetsToScreenSaver;
+	ITemporaryCommonState::ResetTimeout(TimeoutMs);
+}
+
 /////////////////////////////////////////////////////////////////////////////////
 
 CGameSwitchSideState::CGameSwitchSideState() 
@@ -367,6 +459,7 @@ bool CGameSwitchSideState::Next(IGameCallback* Callback, CGameData* Data)
 
 bool CGameState::Next(IGameCallback* Callback, CGameData* Data)
 {
+	Data->ResetGame();
 	Callback->SetCurrentState(new CIdleState(Callback));
 	return true;
 }
@@ -405,9 +498,9 @@ bool CGameState::OnInputPress(SideIndex button, ButtonPressLength press, IGameCa
 
 const CGameData::CGameMode CGameData::m_Modes[3] =
 {
-	{	11, 2, "Short set / 11 balls to win", kVictoryStandard },
-	{	21, 5, "Long set / 21 balls to win", kVictoryStandard },
-	{	11, 2, "All in one / 11 balls to win.", kVictoryLast }
+	{	11, 2, "Short set (11 balls to win)", kVictoryStandard },
+	{	21, 5, "Long set (21 balls to win)", kVictoryStandard },
+	{	11, 2, "All in one (11 balls to win)", kVictoryLast }
 };
 
 int CGameData::GetSetsCompleted() const
@@ -420,7 +513,7 @@ int CGameData::SideToPlayer(SideIndex button) const
 	return (GetSetsCompleted() & 1) ^ button;
 }
 
-void CGameData::Reset()
+void CGameData::ResetGame()
 {
 	srand(static_cast<unsigned>(time(NULL)));
 	for (int player = 0; player < 2; ++player)
@@ -432,11 +525,14 @@ void CGameData::Reset()
 		m_Players[player].Points = 0;
 		m_Players[player].Sets = 0;
 	}
-	m_Mode = 0;
 	m_ServeSide = kSideOne;
 	m_ServeButtonSet = false;
 	m_MatchUuid = Poco::UUIDGenerator().createRandom().toString();
-	
+}
+
+void CGameData::ResetConfiguration()
+{
+	m_Mode = 0;
 	SelectSoundResource();
 }
 
@@ -558,6 +654,15 @@ std::string CGameData::RandomName() const
 void CGameData::SerializeState(Poco::JSON::Object& object) const
 {
 	object.set("gameMode", m_Modes[m_Mode].ModeText);
+	if (m_SoundResource != nullptr) 
+	{
+		object.set("soundSetName", m_SoundResource->GetName() + " (" + m_SoundResource->GetLanguage() + ")");
+	}
+	else 
+	{
+		object.set("soundSetName", "None");
+	}
+
 	Poco::JSON::Array::Ptr Players(new Poco::JSON::Array);
 	for (int side = 0; side < 2; ++side)
 	{
@@ -612,7 +717,7 @@ void CGameData::ToggleGameMode()
 CGameData::CGameData(CSoundResourceCollection& soundResourceCollection)
 	:	m_SoundResourceCollection(soundResourceCollection)
 {
-	Reset();
+	ResetGame();
 }
 
 SideIndex CGameData::PlayerToSide(int player) const
@@ -634,6 +739,37 @@ void CGameData::SelectSoundResource()
 	if (Size) 
 	{
 		m_SoundResource = *(Begin + (rand() % static_cast<int>(Size)));
+	}
+}
+
+void CGameData::ToggleSoundResource()
+{
+	auto Begin = m_SoundResourceCollection.begin(), End = m_SoundResourceCollection.end();
+	size_t Size = End - Begin;
+	if (Size) 
+	{
+		if (m_SoundResource == nullptr) 
+		{
+			m_SoundResource = *Begin;
+		}
+		else
+		{
+			for (auto It = Begin; It != End; ++It)
+			{
+				if ((*It)->GetUnique() == m_SoundResource->GetUnique())
+				{
+					if (It + 1 == End)
+					{
+						m_SoundResource = *Begin;
+					}
+					else
+					{
+						m_SoundResource = *(It + 1);
+					}
+					break;
+				}
+			}
+		}
 	}
 }
 
@@ -700,6 +836,67 @@ bool ITemporaryCommonState::OnInputPress(SideIndex button, ButtonPressLength pre
 	return Next(Callback, Data);
 }
 
+Poco::JSON::Object ITemporaryCommonState::GetInterfaceState(const IGameCallback* Callback, const CGameData* Data)
+{
+	Poco::JSON::Object Result = ICommonState::GetInterfaceState(Callback, Data);
+	int Seconds = 0;
+	Poco::Timestamp Now;
+	if (m_Timeout > Now) 
+	{
+		Seconds = static_cast<int>(((m_Timeout - Now) + 500000) / 1000000);
+	}
+	Result.set("TimeoutInSeconds", Seconds);
+	return Result;
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+
+CGameConfigurationState::CGameConfigurationState() 
+	:	ITemporaryCommonState("configuration", "Short press to toggle value. Long press to change option.", TimeoutMs)
+	,	m_ConfigurationType(kGameMode)
+{
+}
+
+bool CGameConfigurationState::OnInputPress(SideIndex button, ButtonPressLength press, IGameCallback* Callback, CGameData* Data)
+{
+	ResetTimeout(TimeoutMs);
+	if (press == kButtonPressLong)
+	{
+		m_ConfigurationType = static_cast<ConfigurationType>(m_ConfigurationType + 1);
+		if (m_ConfigurationType > kDone) {
+			m_ConfigurationType = kGameMode;
+		}
+		return true;
+	}
+	else
+	if (press == kButtonPressShort)
+	{
+		switch (m_ConfigurationType)
+		{
+		case kGameMode:
+			Data->ToggleGameMode();
+			break;
+		case kSoundSet:
+			Data->ToggleSoundResource();
+			Callback->PlayRandomSound();
+			break;
+		case kDone:
+			Callback->SetCurrentState(new CIdleState(Callback));
+			break;
+		default:
+			return false;
+		};
+		return true;
+	}
+	return false;
+}
+
+bool CGameConfigurationState::Next(IGameCallback* Callback, CGameData* Data)
+{
+	Callback->SetCurrentState(new CIdleState(Callback));
+	return true;
+}
+
 /////////////////////////////////////////////////////////////////////////////////
 
 bool CDetemineServerSideState::OnInputPress(SideIndex button, ButtonPressLength press, IGameCallback* Callback, CGameData* Data)
@@ -712,6 +909,22 @@ bool CDetemineServerSideState::OnInputPress(SideIndex button, ButtonPressLength 
 CDetemineServerSideState::CDetemineServerSideState() 
 	:	ICommonState("game", "Player who will serve press button.")
 {}
+
+/////////////////////////////////////////////////////////////////////////////////
+
+bool CScreenSaverState::OnInputPress(SideIndex button, ButtonPressLength press, IGameCallback* Callback, CGameData* Data)
+{
+	Data->ResetGame();
+	Callback->SetCurrentState(new CIdleState(Callback));
+	return true;
+}
+
+CScreenSaverState::CScreenSaverState() 
+	:	ICommonState("screensaver", "")
+	,	m_Log(Poco::Logger::get("Game.ScreenSaverState"))
+{
+
+}
 
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -760,8 +973,9 @@ void CGameController::OnInputPress(SideIndex button, int miliseconds)
 
 void CGameController::ResetToIdleState()
 {
+	m_Data->ResetGame();
+	m_Data->ResetConfiguration();
 	SetCurrentState(new CIdleState(this));
-	m_Data->Reset();
 }
 
 std::string CGameController::GetInterfaceState(const std::string& message)
@@ -793,7 +1007,6 @@ std::string CGameController::GetInterfaceState(const std::string& message)
 				if (m_SoundsPlay == m_UpdateId)
 				{
 					result.set("Sounds", m_Sounds);
-					ResetSounds();
 				}
 				std::ostringstream str;
 				result.stringify(str);
@@ -1276,9 +1489,27 @@ void CGameController::PlaySoundPointResult()
 	try
 	{
 		auto SoundResource = m_Data->GetSoundResource();
-		m_Sounds->add(Poco::Dynamic::Var(SoundResource->GetNumber(m_Data->PlayerResult(Player))));
-		m_Sounds->add(Poco::Dynamic::Var(200));
-		m_Sounds->add(Poco::Dynamic::Var(SoundResource->GetNumber(m_Data->PlayerResult(Player ^ 1))));
+		m_Sounds->add(Poco::Dynamic::Var(SoundResource->GetNumber(m_Data->PlayerResult(Player), false)));
+		m_Sounds->add(Poco::Dynamic::Var(100));
+		m_Sounds->add(Poco::Dynamic::Var(SoundResource->GetNumber(m_Data->PlayerResult(Player ^ 1), true)));
+		m_SoundsPlay = m_UpdateId + 1;
+	}
+	catch (std::exception& e)
+	{
+		m_Log.error(e.what());
+		ResetSounds();
+	}
+}
+
+void CGameController::PlayRandomSound()
+{
+	ResetSounds();
+	try
+	{
+		auto SoundResource = m_Data->GetSoundResource();
+		m_Sounds->add(Poco::Dynamic::Var(SoundResource->GetNumber(rand() % 22, false)));
+		m_Sounds->add(Poco::Dynamic::Var(100));
+		m_Sounds->add(Poco::Dynamic::Var(SoundResource->GetNumber(rand() % 22, true)));
 		m_SoundsPlay = m_UpdateId + 1;
 	}
 	catch (std::exception& e)

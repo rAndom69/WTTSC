@@ -18,17 +18,28 @@
     <script src="scripts.js"></script>
 </head>
 <body>
+<!-- Initial empty screen -->
     <div class="screen" id="empty">
     </div>
 
+<!-- Screensaver -->
+    <div class="screen" id="screensaver">
+    </div>
+
+<!-- Configuration screen, configurable values are delivered from server -->
+    <div class="screen GradientBlueToWhite" id="configuration">
+    </div>
+
+<!-- No server connection screen -->
     <div class="screen" id="wait">
         <div class="center256x256">
             <img src="img/wait.gif" />
         </div>
     </div>
 
+<!-- Idle screen, show statistics and stuff like that -->
     <div class="screen" id="idle">
-        <div class="GradientBlue1 scoreTableSize">
+        <div class="GradientBlueToWhite scoreTableSize">
             <div id="highscore" class="scoreTable">
             </div>
             <div id="highscoreBackup" class="scoreTable">
@@ -65,6 +76,8 @@
             </table>
         </div>
     </div>
+
+<!-- Game screen -->
     <div class="screen" id="game">
         <table class="Scoreboard">
             <tr>
@@ -96,7 +109,15 @@
             </tr>
         </table>
     </div>
+
+<!-- Status bar -->
     <div id="Information">
+        <table>
+            <tr>
+                <td id="InformationText"></td>
+                <td id="Timeout"></td>
+            </tr>
+        </table>
     </div>
 </body>
 </html>

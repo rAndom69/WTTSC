@@ -40,7 +40,14 @@ void Application::initialize(Poco::Util::Application& self)
 {
 	std::string executableDir = config().getString("application.dir");
 	Poco::FormattingChannel *LogFile = new Poco::FormattingChannel(new Poco::PatternFormatter("%Y%m%d %H%M%S.%i %q:%s:%t"));
-	LogFile->setChannel(new Poco::FileChannel(Poco::Path(executableDir, "wttsc-server.log").toString()));
+	Poco::AutoPtr<Poco::FileChannel> fileChannel(new Poco::FileChannel(Poco::Path(executableDir, "wttsc-server.log").toString()));
+	fileChannel->setProperty("rotation", "10 M");
+	fileChannel->setProperty("rotateOnOpen", "false");
+	fileChannel->setProperty("purgeCount", "1");
+	fileChannel->setProperty("archive", "number");
+	fileChannel->setProperty("compress", "true");
+
+	LogFile->setChannel(fileChannel);
 	LogFile->open();
 	Poco::Logger& Log = Poco::Logger::root();
 	Log.setChannel(LogFile);
