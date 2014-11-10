@@ -67,28 +67,39 @@ body
 
 .scoreTable table
 {
+    font-size: 1.3vw;
     background-color: transparent;
     width: auto;
     height: auto;
 }
 
-.scoreTable table td
+.scoreTable table td > div
 {
-    padding: 5px 15px 5px 15px;
+    padding: 0.2vw 0.2vw 0.2vw 0.2vw;
     text-align: center;
+    width: 1.5vw;
 }
 
-.scoreTable table td.Win
+.scoreTable table td.Date > div
 {
-    padding-left: 0px;
-    padding-right: 0px;
-    color: Yellow;
+    width: 7vw;
 }
 
-.scoreTable table td.Name
+.scoreTable table td.Win > div
+{
+    padding-left: 0;
+    padding-right: 0;
+    color: Yellow;
+    width: 2vw;
+}
+
+.scoreTable table td.Name > div
 {
     padding-left: 0px;
     text-align: left;
+    width: 11.5vw;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 
 .scoreTable table td.Spacer

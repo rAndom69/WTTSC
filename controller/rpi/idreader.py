@@ -14,61 +14,82 @@ KEYCODE_RENTER  = 96
 
 #read keyboard events (from multiple input devices) and deliver keycodes to dataCallback
 def ReadKeyboardEvents(inMap, dataCallback, runCallback) :
-    logging.debug("idreader initialization")
+  logging.debug("idreader initialization")
 
-    infile      = []
-    data        = []
-    indexToKey  = []
-    
-    for key in inMap.keys() :
-        infile.append(open(inMap[key], "rb"))
-        data.append([]);
-        indexToKey.append(key)
+  class InputEventReader :
+    def __init__(self, device, key, dataCallback) :
+      self._device = device
+      self._key = key
+      self._fileno = os.open(device, os.O_RDONLY | os.O_NONBLOCK)
+      self._buf = ""
+      self._data = []
+
+    def read(self) :
+      self._buf += os.read(self._fileno, 1024)
+      while (len(self._buf) >= EVENT_SIZE) :
+        event = self._buf[:EVENT_SIZE]
+        self._buf = self._buf[EVENT_SIZE:]
+        (tv_sec, tv_usec, type, code, value) = struct.unpack(FORMAT, event)
+
+        if type == EV_KEY and value in [KEY_PRESS, KEY_REPEAT] :
+          self._data.append(code);
+          print code
+          if code in [KEYCODE_ENTER, KEYCODE_RENTER] :
+            dataCallback(self._key, self._data)
+            self._data = [];
+
+    def fileno(self) :
+      return self._fileno
+
+    def close(self) :
+      os.close(self._fileno)
+      self._fileno = -1
+
+  pollFilesToInputMap = {}
+  try :
+    poll = select.poll()
+    pollFilesToInputMap = {}
         
-    try :
-    	while runCallback() :
-            try :
-                read = select.select(infile, [], [], 1)[0];
-            except select.error as e :
-            #handle EINTR
-                if e[0] == 4 :
-                    continue
-                else :
-                    raise
-
-	    for f in read :
-                index = infile.index(f)
-            #use blocking call. this should not be issue as events should come in expected size
-            #EINTR ?
-                event = f.read(EVENT_SIZE);
-                (tv_sec, tv_usec, type, code, value) = struct.unpack(FORMAT, event)
-
-                if type == EV_KEY and value in [KEY_PRESS, KEY_REPEAT] :
-                    data[index].append(code);
-                    if code in [KEYCODE_ENTER, KEYCODE_RENTER] :
-                        dataCallback(indexToKey[index], data[index])
-                        data[index] = [];
-    finally:
-        logging.debug("idreader shutdown")
-        for f in infile :
-            f.close()
+    for key in inMap.keys() :
+      inputDevice = InputEventReader(inMap[key], key, dataCallback)
+      pollFilesToInputMap[inputDevice.fileno()] = inputDevice
+      poll.register(inputDevice.fileno(), select.POLLIN | select.POLLPRI)
+        
+    while runCallback() :
+      try :
+        for x, e in poll.poll(1000) :
+          inputDevice = pollFilesToInputMap[x]
+          inputDevice.read()
+      except select.error as e :
+      #handle EINTR which would otherwise terminate us
+        if e[0] == 4 :
+          continue
+        else :
+          raise
+        
+  finally:
+    logging.debug("idreader shutdown")
+    for inputDevice in pollFilesToInputMap.values() :
+      inputDevice.close()
+        
 
 #debug mode
 if __name__ == "__main__" :
-    try :
-        RUN = True
-        
-        def PrintCallback(key, data) :
-            print key, data
+  try :
+    RUN = True
 
-        def RunCallback() :
-            global RUN
-            return RUN
+    def PrintCallback(key, data) :
+      print key, data
 
-        def Terminate(_signo, _stack_frame) :
-            global RUN
-            RUN = False;
-        
-        signal.signal(signal.SIGTERM, Terminate)
-	ReadKeyboardEvents({"aa":"/dev/input/event0", "bb":"/dev/input/event0"}, PrintCallback, RunCallback)
-    except KeyboardInterrupt : ""
+    def RunCallback() :
+      global RUN
+      return RUN
+
+    def Terminate(_signo, _stack_frame) :
+      global RUN
+      RUN = False;
+
+    signal.signal(signal.SIGTERM, Terminate)
+    ReadKeyboardEvents({0:"/dev/input/event0"}, PrintCallback, RunCallback)
+    
+  except KeyboardInterrupt : ""

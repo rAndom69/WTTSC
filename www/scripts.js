@@ -204,13 +204,13 @@ UpdateData.idle = function (data, pageChanged) {
             for (row = 0; row < 2; ++row) {
                 html += "<tr>";
                 if (row == 0) {
-                    html += '<td class="nowrap" rowspan="2">' + (new Date(match.datetime * 1000)).toLocaleDateString() + "</td>";
+                    html += '<td class="Date nowrap" rowspan="2"><div>' + (new Date(match.datetime * 1000)).toLocaleDateString() + "</div></td>";
                 }
-                html += '<td class="Win">' + (match.win[row] ? '<div class="glyphicon glyphicon-star"></div>' : '') + "</td>";
-                html += '<td class="Name nowrap">' + match.names[row] + "</td>";
+                html += '<td class="Win">' + (match.win[row] ? '<div class="glyphicon glyphicon-star"></div>' : '<div></div>') + "</td>";
+                html += '<td class="Name nowrap"><div>' + match.names[row] + "</div></td>";
                 var set;
                 for (set = 0; set < match.sets.length; ++set) {
-                    html += '<td class="Score">' + match.sets[set][row] + "</td>";
+                    html += '<td class="Score"><div>' + match.sets[set][row] + "</div></td>";
                 }
                 html += "</tr>";
             }
