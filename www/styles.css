@@ -204,12 +204,14 @@ body
     overflow: hidden;
 }
 
-.ScoreboardLargeColumn .player0name
+.ScoreboardLargeColumn .player0name,
+.ScoreboardLargeColumn .player0score
 {
     left: 0;
 }
 
-.ScoreboardLargeColumn .player1name
+.ScoreboardLargeColumn .player1name,
+.ScoreboardLargeColumn .player1score
 {
     right: 0;
 }
@@ -217,8 +219,11 @@ body
 .ScoreboardLargeColumn .player0score,
 .ScoreboardLargeColumn .player1score
 {
-    font-size: 20vw;
+    position: absolute;
+    font-size: 50vh;
     font-weight: 900;
+    top: 25vh;
+    width: 50vw;
 }
 
 .ScoreboardSmallColumn
