@@ -118,9 +118,16 @@ public:
 //	After one of players won, this state is shortly displayed to show message
 class CGameSwitchSideState : public ITemporaryCommonState
 {
+protected:
+	enum
+	{
+		TimeoutMs = 15 * 1000
+	};
+
 public:
 	CGameSwitchSideState();
 	virtual bool Next(IGameCallback* Callback, CGameData* Data);
+	virtual bool OnInputPress(SideIndex side, ButtonPressLength press, IGameCallback* Callback, CGameData* Data) override;
 };
 
 //	Game implementation. Doh pretty short for compared to the remainder of this crap
@@ -446,16 +453,36 @@ void CIdleState::ResetTimeout()
 /////////////////////////////////////////////////////////////////////////////////
 
 CGameSwitchSideState::CGameSwitchSideState() 
-	: ITemporaryCommonState("game", "Switch sides!")
+	: ITemporaryCommonState("game", "Switch sides! Short press to cancel last input and return to game, Long press to begin game.", TimeoutMs)
 {
 }
 
 bool CGameSwitchSideState::Next(IGameCallback* Callback, CGameData* Data)
 {
+	Callback->StoreCurrentGameResult();
 	Data->StartSetContinueMatch();
 	Callback->SetCurrentState(new CGameState);
 	return true;
 }
+
+bool CGameSwitchSideState::OnInputPress(SideIndex side, ButtonPressLength press, IGameCallback* Callback, CGameData* Data)
+{
+	if (press == kButtonPressShort)
+	{
+		side = Data->PlayerToSide(0);
+		Data->SubtractPlayerPoint(static_cast<SideIndex>(Data->PlayerResult(0) > Data->PlayerResult(1) ? side : (side ^ 1)));
+		Callback->SetCurrentState(new CGameState);
+		return true;
+	}
+	else
+	if (press == kButtonPressLong)
+	{
+		return Next(Callback, Data);
+	}
+	return false;
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 
 bool CGameState::Next(IGameCallback* Callback, CGameData* Data)
 {
@@ -488,7 +515,6 @@ bool CGameState::OnInputPress(SideIndex button, ButtonPressLength press, IGameCa
 	}
 	if (Data->IsSetFinished())
 	{
-		Callback->StoreCurrentGameResult();
 		Callback->SetCurrentState(new CGameSwitchSideState);
 	}
 	return true;
