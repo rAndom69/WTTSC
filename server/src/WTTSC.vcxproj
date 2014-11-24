@@ -113,10 +113,12 @@ xcopy $(SolutionDir)\www $(SolutionDir)..\Application\$(Configuration)\www /Y /E
     <ClInclude Include="Game.h" />
     <ClInclude Include="HttpServer.h" />
     <ClInclude Include="IGame.h" />
+    <ClInclude Include="Resources\IDatabaseResource.h" />
     <ClInclude Include="Resources\ISoundResource.h" />
     <ClInclude Include="Resources\ResourceCollection.h" />
     <ClInclude Include="Resources\SoundResource.h" />
     <ClInclude Include="Resources\SoundResourceCollection.h" />
+    <ClInclude Include="Resources\SQLiteDatabaseResource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -132,6 +134,7 @@ xcopy $(SolutionDir)\www $(SolutionDir)..\Application\$(Configuration)\www /Y /E
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="HttpServer.cpp" />
+    <ClCompile Include="Resources\SQLiteDatabaseResource.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>

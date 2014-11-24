@@ -4,8 +4,6 @@
 #include <Poco/JSON/Parser.h>
 #include <Poco/JSON/ParseHandler.h>
 #include <Poco/UUIDGenerator.h>
-#include "../ThirdParty/Statement.h"
-#include "../ThirdParty/Transaction.h"
 #include <assert.h>
 #include "Resources/SoundResourceCollection.h"
 
@@ -65,7 +63,7 @@ public:
 	int PlayerSetResult(int player) const;
 	//	NOTE:
 	//	This functions expect set ended, but new one did not start.
-	int IsPlayerVictorious(int player) const;
+	bool IsPlayerVictorious(int player) const;
 
 	std::string MatchUuid() const;
 	int  GameMode() const;
@@ -224,11 +222,13 @@ class CIdleState : public ITemporaryCommonState
 protected:
 	Poco::Logger&	m_Log;
 	int				m_ReaderSet;
-	std::vector<IGameCallback::MatchResults> 
+	std::vector<IDatabaseResource::MatchResults> 
 					m_ScoreTable;
+	std::vector<IDatabaseResource::UserResults>
+					m_UserScoreTable;
 	std::string		m_ScoreTableText;
-	std::string		m_ScoreTableId;
 	int				m_ResetsToScreenSaver;
+	int				m_CurrentStatistics;
 	
 	enum
 	{
@@ -242,9 +242,11 @@ protected:
 		ResetsToScreenSaver		= (10 * 60 * 1000) / TimeoutMs,	//!<	Number of resets before screen saver is run
 #endif
 	};
-	void DisplayStatistics(const std::vector<IGameCallback::MatchResults>& Statistics);
+	void DisplayStatistics(const std::vector<IDatabaseResource::UserResults>& Statistics);
+	void DisplayStatistics(const std::vector<IDatabaseResource::MatchResults>& Statistics);
 	void DisplayStatisticsForPlayers(const IGameCallback* Callback, const std::string& playerId1, const std::string& playerId2);
-	void DisplayRandomStatistics(const IGameCallback* Callback);
+	void DisplayUserRankings(IDatabaseResource& Database);
+	void DisplayNextStatistics(const IGameCallback* Callback);
 	void ResetTimeout();
 
 
@@ -270,7 +272,7 @@ bool CIdleState::Next(IGameCallback* Callback, CGameData* Data)
 	{
 		m_ReaderSet = 0;
 		Data->ResetGame();
-		DisplayRandomStatistics(Callback);
+		DisplayNextStatistics(Callback);
 	}
 	return true;
 }
@@ -380,6 +382,23 @@ Poco::JSON::Object CIdleState::GetInterfaceState(const IGameCallback* Callback, 
 		object.set("scoreTable", Matches);
 		object.set("scoreText", m_ScoreTableText);
 	}
+	else
+	if (m_UserScoreTable.size())
+	{
+		Poco::JSON::Array::Ptr Users(new Poco::JSON::Array);
+		for (auto It = m_UserScoreTable.begin(); It != m_UserScoreTable.end(); ++It)
+		{
+			Poco::JSON::Object::Ptr	User(new Poco::JSON::Object);
+			User->set("name", It->Name);
+			User->set("setsWon", It->SetsWon);
+			User->set("setsTotal", It->SetsTotal);
+			User->set("matchesWon", It->MatchesWon);
+			User->set("matchesTotal", It->MatchesTotal);
+			Users->add(User);
+		}
+		object.set("userRankTable", Users);
+		object.set("scoreText", m_ScoreTableText);
+	}
 	return object;
 }
 
@@ -389,40 +408,27 @@ CIdleState::CIdleState(const IGameCallback* Callback)
 	,	m_Log(Poco::Logger::get("Game.IdleState"))
 	,	m_ReaderSet(0)
 	,	m_ResetsToScreenSaver(ResetsToScreenSaver)
+	,	m_CurrentStatistics(rand())
 {
-	DisplayRandomStatistics(Callback);
+	DisplayNextStatistics(Callback);
 }
 
-void CIdleState::DisplayRandomStatistics(const IGameCallback* Callback)
+void CIdleState::DisplayNextStatistics(const IGameCallback* Callback)
 {
-	while (true)
+	switch (m_CurrentStatistics++ % 2)
 	{
-		switch (rand() % 2)
+	default:
+	case 0:
 		{
-		default:
-		case 0:
-			{
-				if (m_ScoreTableId == "LastMatches")
-				{	//	We don't want same statistics one after another
-					continue;
-				}
-				m_ScoreTableId = "LastMatches";
-				m_ScoreTableText = "Last matches";
-				return DisplayStatistics(Callback->GetLastResults(MaxMatchForStatistics));
-			}
-		case 1:
-			{
-				std::pair<std::string, std::string>	Players = Callback->GetRandomPlayers();
-				std::string ScoreTableId = Players.first + "x" + Players.second;
-				if (m_ScoreTableId == ScoreTableId)
-				{	//	Skip same statistics
-					continue;
-				}
-				m_ScoreTableId = ScoreTableId;
-				return DisplayStatisticsForPlayers(Callback, Players.first, Players.second);
-			}
-		};
-	}
+			m_ScoreTableText = "Last matches";
+			return DisplayStatistics(Callback->GetLastResults(MaxMatchForStatistics));
+		}
+	case 1:
+		{
+			m_ScoreTableText = "User Rankings";
+			return DisplayUserRankings(Callback->GetDatabase());
+		}
+	};
 }
 
 void CIdleState::DisplayStatisticsForPlayers(const IGameCallback* Callback, const std::string& playerId1, const std::string& playerId2)
@@ -439,15 +445,27 @@ void CIdleState::DisplayStatisticsForPlayers(const IGameCallback* Callback, cons
 	DisplayStatistics(Callback->GetLastResultsForPlayers(playerId1, playerId2, MaxMatchForStatistics));
 }
 
-void CIdleState::DisplayStatistics(const std::vector<IGameCallback::MatchResults>& Statistics)
+void CIdleState::DisplayStatistics(const std::vector<IDatabaseResource::UserResults>& Statistics)
+{
+	m_UserScoreTable = Statistics;
+	m_ScoreTable.clear();
+}
+
+void CIdleState::DisplayStatistics(const std::vector<IDatabaseResource::MatchResults>& Statistics)
 {
 	m_ScoreTable = Statistics;
+	m_UserScoreTable.clear();
 }
 
 void CIdleState::ResetTimeout()
 {
 	m_ResetsToScreenSaver = ResetsToScreenSaver;
 	ITemporaryCommonState::ResetTimeout(TimeoutMs);
+}
+
+void CIdleState::DisplayUserRankings(IDatabaseResource& Database)
+{	//	Last two months
+	DisplayStatistics(Database.GetUserResults((Poco::Timestamp() - (2LL * 30 * 24 * 60 * 60 * 1000 * 1000)).epochTime()));
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -624,7 +642,7 @@ std::string CGameData::MatchUuid() const
 	return m_MatchUuid;
 }
 
-int CGameData::IsPlayerVictorious(int player) const
+bool CGameData::IsPlayerVictorious(int player) const
 {
 	assert(IsSetFinished());
 	switch (m_Modes[m_Mode].VictoryCondition)
@@ -632,14 +650,14 @@ int CGameData::IsPlayerVictorious(int player) const
 	case kVictoryStandard:
 		if (PlayerSetResult(player) == PlayerSetResult(player ^ 1))
 		{
-			return 0;
+			return false;
 		}
 		return PlayerSetResult(player) > PlayerSetResult(player ^ 1);
 
 	case kVictoryLast:
 		return m_Players[player].Points > m_Players[player ^ 1].Points;
 	};
-	return 0;
+	return false;
 }
 
 int CGameData::PlayerSetResult(int player) const
@@ -1084,9 +1102,9 @@ void CGameController::SetCurrentState(IGameState* newState)
 	UpdateGui();
 }
 
-CGameController::CGameController(SQLite::Database* Database, Poco::Path FSClientRoot)
+CGameController::CGameController(std::unique_ptr<IDatabaseResource> DBResource, Poco::Path FSClientRoot)
 	:	m_Log(Poco::Logger::get("Game"))
-	,	m_Database(Database)
+	,	m_DBResource(std::move(DBResource))
 	,	m_StateChanged(false)
 	,	m_UpdateId(0)
 	,	m_ReloadClient(false)
@@ -1140,7 +1158,7 @@ Poco::JSON::Object CGameController::HandleRpcCalls(Poco::JSON::Object& object)
 			if (commands->has("RenameUser"))
 			{
 				auto Params = commands->getObject("RenameUser");
-				RenameUser(Params->getValue<std::string>("ID"), Params->getValue<std::string>("Name"));
+				m_DBResource->SetUserNameById(Params->getValue<std::string>("ID"), Params->getValue<std::string>("Name"));
 			}
 		}
 		catch (std::exception& e)
@@ -1178,28 +1196,7 @@ void CGameController::run()
 
 void CGameController::Initialize()
 {
-	if (!m_Database->tableExists("users"))
-	{
-		m_Database->exec("CREATE TABLE users (uid VARCHAR(33) PRIMARY KEY, name VARCHAR(255), lastLogon INT);");
-	}
-	if (!m_Database->tableExists("match_results"))
-	{
-		m_Database->exec("BEGIN;\
-						  CREATE TABLE match_results (match VARCHAR(33) PRIMARY KEY, uid1 VARCHAR(33), uid2 VARCHAR(33), result1 INTEGER, result2 INTEGER, win1 INTEGER, win2 INTEGER, mode INTEGER, date INTEGER, \
-						  FOREIGN KEY (uid1) REFERENCES users(uid), FOREIGN KEY (uid2) REFERENCES users(uid)); \
-						  CREATE INDEX match_results_uid1 ON match_results (uid1); \
-						  CREATE INDEX match_results_uid2 ON match_results (uid2); \
-						  CREATE INDEX match_results_date ON match_results (date); \
-						  COMMIT;");
-	}
-	if (!m_Database->tableExists("results"))
-	{
-		m_Database->exec("BEGIN;\
-			CREATE TABLE results (match VARCHAR(33), uid1 VARCHAR(33), uid2 VARCHAR(33), result1 INTEGER, result2 INTEGER, won1 INTEGER, won2 INTEGER, date INTEGER, \
-			FOREIGN KEY (uid1) REFERENCES users(uid), FOREIGN KEY (uid2) REFERENCES users(uid));\
-			CREATE INDEX results_match ON results (match); \
-			COMMIT;");
-	}
+	m_DBResource->Initialize();
 }
 
 void CGameController::StoreCurrentGameResult()
@@ -1212,32 +1209,13 @@ void CGameController::StoreCurrentGameResult()
 	{
 		//	Results are stored before new set begins (which means we have to add winning set to corresponding player)
 		//	Shitty design
-		SQLite::Transaction	transaction(*m_Database);
-
-		SQLite::Statement	statement(*m_Database, "INSERT INTO results (match, uid1, uid2, result1, result2, won1, won2, date) VALUES (?,?,?,?,?,?,?,?);");
-		statement.bind(1, m_Data->MatchUuid());
-		statement.bind(2, m_Data->PlayerId(0));
-		statement.bind(3, m_Data->PlayerId(1));
-		statement.bind(4, m_Data->PlayerResult(0));
-		statement.bind(5, m_Data->PlayerResult(1));
-		statement.bind(6, m_Data->PlayerResult(0) > m_Data->PlayerResult(1) ? 1 : 0);
-		statement.bind(7, m_Data->PlayerResult(0) < m_Data->PlayerResult(1) ? 1 : 0);
-		statement.bind(8, Poco::Timestamp().epochTime());
-		statement.exec();
-
-		SQLite::Statement	statement2(*m_Database, "INSERT OR REPLACE INTO match_results (match, uid1, uid2, result1, result2, win1, win2, mode, date) VALUES (?,?,?,?,?,?,?,?,?);");
-		statement2.bind(1, m_Data->MatchUuid());
-		statement2.bind(2, m_Data->PlayerId(0));
-		statement2.bind(3, m_Data->PlayerId(1));
-		statement2.bind(4, m_Data->PlayerSetResult(0));
-		statement2.bind(5, m_Data->PlayerSetResult(1));
-		statement2.bind(6, m_Data->IsPlayerVictorious(0));
-		statement2.bind(7, m_Data->IsPlayerVictorious(1));
-		statement2.bind(8, m_Data->GameMode());
-		statement2.bind(9, Poco::Timestamp().epochTime());
-		statement2.exec();
-
-		transaction.commit();
+		m_DBResource->StoreMatchResult(
+			m_Data->MatchUuid(),
+			std::make_pair(m_Data->PlayerId(0), m_Data->PlayerId(1)),
+			std::make_pair(m_Data->PlayerResult(0), m_Data->PlayerResult(1)),
+			std::make_pair(m_Data->PlayerSetResult(0), m_Data->PlayerSetResult(1)),
+			std::make_pair(m_Data->IsPlayerVictorious(0), m_Data->IsPlayerVictorious(1)),
+			m_Data->GameMode());
 	}
 	catch (std::exception& e)
 	{
@@ -1255,12 +1233,7 @@ std::string CGameController::GetPlayerNameById(const std::string& Uid) const
 {
 	try
 	{
-		SQLite::Statement	statement(*m_Database, "SELECT name FROM users WHERE uid = ?;");
-		statement.bind(1, Uid);
-		if (statement.executeStep())
-		{
-			return static_cast<std::string>(statement.getColumn(0));
-		}
+		return m_DBResource->GetUserNameById(Uid);
 	}
 	catch (std::exception& e)
 	{
@@ -1269,49 +1242,21 @@ std::string CGameController::GetPlayerNameById(const std::string& Uid) const
 	return std::string();
 }
 
-std::vector<CGameController::MatchResults> 
-CGameController::GetLastResultsForPlayers(const std::string& playerId1, const std::string& playerId2, int max) const
+std::vector<IDatabaseResource::MatchResults> 
+CGameController::GetLastResultsForPlayers(const std::string& playerId1, const std::string& playerId2, int Limit) const
 {
-	std::vector<MatchResults>	Results;
+	std::vector<IDatabaseResource::MatchResults>	Results;
 	try
 	{
 		if (playerId1.length() && playerId2.length())
 		{
-			SQLite::Statement	statement(*m_Database, 
-				"SELECT results.match, results.uid1, results.uid2, results.result1, results.result2, match_results.result1, match_results.result2, match_results.date, match_results.win1, match_results.win2, users1.name, users2.name \
-				FROM results LEFT JOIN match_results ON results.match = match_results.match \
-				LEFT JOIN users AS users1 ON match_results.uid1 = users1.uid \
-				LEFT JOIN users AS users2 ON match_results.uid2 = users2.uid \
-				WHERE match_results.match in  \
-				(SELECT match FROM match_results WHERE (uid1=? AND uid2=?) OR (uid1=? AND uid2=?) ORDER BY date DESC LIMIT ?) \
-				ORDER BY match_results.DATE desc, results.date");
-			statement.bind(1, playerId1);
-			statement.bind(2, playerId2);
-			statement.bind(3, playerId2);
-			statement.bind(4, playerId1);
-			statement.bind(5, max);
-
-			GetResultsFromStatement(statement, Results);
+			Results = m_DBResource->GetLatestResultsForUsers(std::make_pair(playerId1, playerId2), Limit);
 		}
 		else
 		if (playerId1.length() || playerId2.length())
 		{
-			std::string playerId = playerId1.length() ? playerId1 : playerId2;
-			SQLite::Statement	statement(*m_Database, 
-				"SELECT results.match, results.uid1, results.uid2, results.result1, results.result2, match_results.result1, match_results.result2, match_results.date, match_results.win1, match_results.win2, users1.name, users2.name \
-				FROM results LEFT JOIN match_results ON results.match = match_results.match \
-				LEFT JOIN users AS users1 ON match_results.uid1 = users1.uid \
-				LEFT JOIN users AS users2 ON match_results.uid2 = users2.uid \
-				WHERE match_results.match in  \
-				(SELECT match FROM match_results WHERE uid1=? OR uid2=? ORDER BY date DESC LIMIT ?) \
-				ORDER BY match_results.DATE desc, results.date");
-			statement.bind(1, playerId);
-			statement.bind(2, playerId);
-			statement.bind(3, max);
-
-			GetResultsFromStatement(statement, Results);
+			Results = m_DBResource->GetLatestResultsForUsers(playerId1.length() ? playerId1 : playerId2, Limit);
 		}
-
 	}
 	catch (std::exception& e)
 	{
@@ -1320,56 +1265,19 @@ CGameController::GetLastResultsForPlayers(const std::string& playerId1, const st
 	return Results;
 }
 
-std::vector<CGameController::MatchResults> 
-CGameController::GetLastResults(int max) const
+std::vector<IDatabaseResource::MatchResults> 
+CGameController::GetLastResults(int Limit) const
 {
-	std::vector<MatchResults>	Results;
+	std::vector<IDatabaseResource::MatchResults>	Results;
 	try
 	{
-		SQLite::Statement	statement(*m_Database, 
-			"SELECT results.match, results.uid1, results.uid2, results.result1, results.result2, match_results.result1, match_results.result2, match_results.date, match_results.win1, match_results.win2, users1.name, users2.name \
-			FROM results LEFT JOIN match_results ON results.match = match_results.match \
-			LEFT JOIN users AS users1 ON match_results.uid1 = users1.uid \
-			LEFT JOIN users AS users2 ON match_results.uid2 = users2.uid \
-			WHERE match_results.match in  \
-			(SELECT match FROM match_results ORDER BY date DESC LIMIT ?) \
-			ORDER BY match_results.DATE desc, results.date");
-		statement.bind(1, max);
-		GetResultsFromStatement(statement, Results);
+		Results = m_DBResource->GetLatestResults(Limit);
 	}
 	catch (std::exception& e)
 	{
 		m_Log.error(e.what());
 	}
 	return Results;
-}
-
-void CGameController::GetResultsFromStatement(SQLite::Statement& statement, std::vector<MatchResults>& results) const
-{
-	std::string match_last;
-	while (statement.executeStep())
-	{
-		std::string match = statement.getColumn(0);
-		std::string id[2] = { static_cast<std::string>(statement.getColumn(1)), static_cast<std::string>(statement.getColumn(2)) };
-		int			result[2] = { statement.getColumn(3), statement.getColumn(4) },
-					match_result[2] = { statement.getColumn(5), statement.getColumn(6) };
-		time_t		time = statement.getColumn(7);
-		int			win[2] = { statement.getColumn(8), statement.getColumn(9) };
-		std::string name[2] = { statement.getColumn(10), statement.getColumn(11) };
-		if (match != match_last)
-		{
-			match_last = match;
-			results.push_back(MatchResults());
-			for (int idx = 0; idx < 2; ++idx)
-			{
-				results.back().Result[idx] = match_result[idx];
-				results.back().PlayerNames[idx] = name[idx];
-				results.back().Win[idx] = win[idx];
-			}
-			results.back().DateTime = time;
-		}
-		results.back().SetResults.push_back(Score(result[0], result[1]));
-	}
 }
 
 std::pair<std::string, std::string> CGameController::GetRandomPlayers() const
@@ -1377,15 +1285,7 @@ std::pair<std::string, std::string> CGameController::GetRandomPlayers() const
 	std::pair<std::string, std::string>	Result;
 	try
 	{
-		//	TODO possibly very slow (select entire table, generate random)
-		//	Think about it 
-		SQLite::Statement	statement(*m_Database, 
-			"SELECT uid1, uid2 FROM match_results ORDER BY RANDOM() LIMIT 1;");
-		if (statement.executeStep())
-		{
-			Result.first = statement.getColumn(0);
-			Result.second = statement.getColumn(1);
-		}
+		Result = m_DBResource->GetRandomUsers();
 	}
 	catch (std::exception& e)
 	{
@@ -1422,76 +1322,43 @@ void CGameController::WaitForUpdate(unsigned int LastClientUpdateId)
 
 void CGameController::LoginPlayer(const std::string& Uid)
 {
-	SQLite::Statement	statement(*m_Database, "SELECT COUNT(*) FROM users WHERE uid = ?;");
-	statement.bind(1, Uid);
-	if (statement.executeStep())
+	if (m_DBResource->UserExists(Uid))
 	{
-		if (static_cast<int>(statement.getColumn(0)) == 0)
-		{	//	Create player with defaults
-			SQLite::Statement	statement2(*m_Database, "INSERT INTO users (uid, name, lastLogon) VALUES (?,?,?);");
-			statement2.bind(1, Uid);
-			statement2.bind(2, Uid);
-			statement2.bind(3, Poco::Timestamp().epochTime());
-			statement2.exec();
-		}
-		else
-		{
-			SQLite::Statement	statement2(*m_Database, "UPDATE users SET lastLogon = ? WHERE uid = ?;");
-			statement2.bind(1, Poco::Timestamp().epochTime());
-			statement2.bind(2, Uid);
-			statement2.exec();
-		}
+		m_DBResource->UpdateUserLogonTime(Uid);
+	}
+	else
+	{
+		m_DBResource->CreateUser(Uid, Uid);
 	}
 }
 
 std::string CGameController::GetPlayerIdByName(const std::string& Name)
 {
-	SQLite::Statement	statement(*m_Database, "SELECT uid FROM users WHERE name = ?;");
-	statement.bind(1, Name);
-	if (!statement.executeStep())
+	return m_DBResource->GetUserIdByName(Name);
+}
+
+Poco::JSON::Array::Ptr CGameController::ConvertLogonsToJson(const std::vector<IDatabaseResource::User>& Players)
+{
+	Poco::JSON::Array::Ptr	Logons(new Poco::JSON::Array);
+	for (auto It = Players.begin(); It != Players.end(); ++It)
 	{
-		throw std::runtime_error("Unknown player name: '" + Name + "'");
+		Poco::JSON::Object::Ptr	User(new Poco::JSON::Object);
+		User->set("ID", It->Id);
+		User->set("Name", It->Name);
+		User->set("LastLogon", It->LastLogon);
+		Logons->add(User);
 	}
-	return static_cast<std::string>(statement.getColumn(0));
+	return Logons;
 }
 
 Poco::JSON::Array::Ptr CGameController::GetLastLogons(size_t Count)
 {
-	SQLite::Statement	statement(*m_Database, "SELECT uid, name, lastLogon FROM users ORDER BY lastLogon DESC LIMIT ?;");
-	statement.bind(1, static_cast<int>(Count));
-	Poco::JSON::Array::Ptr	Logons(new Poco::JSON::Array);
-	while (statement.executeStep())
-	{
-		Poco::JSON::Object::Ptr	User(new Poco::JSON::Object);
-		User->set("ID", static_cast<std::string>(statement.getColumn(0)));
-		User->set("Name", static_cast<std::string>(statement.getColumn(1)));
-		User->set("LastLogon", static_cast<time_t>(statement.getColumn(2)));
-		Logons->add(User);
-	}
-	return Logons;
+	return ConvertLogonsToJson(m_DBResource->GetLatestLogons(Count));
 }
 
 Poco::JSON::Array::Ptr CGameController::GetUsers()
 {
-	SQLite::Statement	statement(*m_Database, "SELECT uid, name, lastLogon FROM users ORDER BY uid;");
-	Poco::JSON::Array::Ptr	Logons(new Poco::JSON::Array);
-	while (statement.executeStep())
-	{
-		Poco::JSON::Object::Ptr	User(new Poco::JSON::Object);
-		User->set("ID", static_cast<std::string>(statement.getColumn(0)));
-		User->set("Name", static_cast<std::string>(statement.getColumn(1)));
-		User->set("LastLogon", static_cast<time_t>(statement.getColumn(2)));
-		Logons->add(User);
-	}
-	return Logons;
-}
-
-void CGameController::RenameUser(const std::string& Id, const std::string& Name)
-{
-	SQLite::Statement	statement(*m_Database, "UPDATE users SET name = ? WHERE uid = ?;");
-	statement.bind(1, Name);
-	statement.bind(2, Id);
-	statement.exec();
+	return ConvertLogonsToJson(m_DBResource->GetUsers());
 }
 
 void CGameController::ResetSounds()
@@ -1543,4 +1410,9 @@ void CGameController::PlayRandomSound()
 		m_Log.error(e.what());
 		ResetSounds();
 	}
+}
+
+IDatabaseResource& CGameController::GetDatabase() const 
+{
+	return *m_DBResource;
 }

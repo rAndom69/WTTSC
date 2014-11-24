@@ -44,6 +44,57 @@ body
     color: White;
 }
 
+.rankTable
+{
+    color: White;
+    width: 60vw;
+    margin: 2vh 20vw 2vh 20vw;
+}
+
+.rankTable tr > td
+{
+    padding: 0.1em 1em 0.1em 1em;
+}
+
+.rankTable tr > td.Name
+{
+    width: 20vw;
+}
+
+.rankTable tr > td.Won
+{
+    width: 10vw;
+    text-align: right;
+}
+
+.rankTable tr > td.Total
+{
+    width: 10vw;
+    text-align: left;
+}
+
+.rankTable tr > td.Delimiter
+{
+    text-align: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.rankTable tr > td.ColumnName
+{
+    text-align: center;
+}
+
+.rankTable tr:first-child
+{
+    font-weight: 900;
+}
+
+.rankTable tr:first-child > td
+{
+    padding-bottom: 0.5em;
+}
+
 .nowrap
 {
     white-space: nowrap;

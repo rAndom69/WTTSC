@@ -107,6 +107,12 @@
     <ClInclude Include="Resources\ISoundResource.h">
       <Filter>Source Files\Resources</Filter>
     </ClInclude>
+    <ClInclude Include="Resources\IDatabaseResource.h">
+      <Filter>Source Files\Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources\SQLiteDatabaseResource.h">
+      <Filter>Source Files\Resources</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -135,6 +141,9 @@
     </ClCompile>
     <ClCompile Include="..\ThirdParty\Database.cpp">
       <Filter>ThirdParty</Filter>
+    </ClCompile>
+    <ClCompile Include="Resources\SQLiteDatabaseResource.cpp">
+      <Filter>Source Files\Resources</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

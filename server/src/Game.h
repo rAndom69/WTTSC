@@ -11,7 +11,7 @@
 #include <Poco/Event.h>
 #include <Poco/Logger.h>
 #include "Resources/SoundResourceCollection.h"
-#include "../ThirdParty/Database.h"
+#include "Resources/IDatabaseResource.h"
 
 enum ButtonPressLength
 {
@@ -43,32 +43,14 @@ public:
 	virtual void SetCurrentState(IGameState* newState) abstract;
 
 //	Database related
-	struct Score
-	{
-		int	score[2];
-		Score(int s0 = 0, int s1 = 0)
-		{ score[0] = s0; score[1] = s1; }
-		int& operator [] (size_t index)
-		{ return score[index]; }
-		int operator [] (size_t index) const
-		{ return score[index]; }
-	};
-
-	struct MatchResults
-	{
-		std::vector<Score>		SetResults;
-		Score					Result;
-		std::string				PlayerNames[2];
-		time_t					DateTime;
-		int						Win[2];
-	};
-
 	virtual void StoreCurrentGameResult() abstract;
 	virtual std::string GetPlayerNameById(const std::string& Uid) const abstract;
 	virtual void LoginPlayer(const std::string& Uid) abstract;
-	virtual std::vector<MatchResults> GetLastResultsForPlayers(const std::string& playerId1, const std::string& playerId2, int max) const abstract;
-	virtual std::vector<MatchResults> GetLastResults(int max) const abstract;
+	virtual std::vector<IDatabaseResource::MatchResults> GetLastResultsForPlayers(const std::string& playerId1, const std::string& playerId2, int max) const abstract;
+	virtual std::vector<IDatabaseResource::MatchResults> GetLastResults(int max) const abstract;
 	virtual std::pair<std::string, std::string> GetRandomPlayers() const abstract;
+
+	virtual IDatabaseResource& GetDatabase() const abstract;
 
 	virtual void PlaySoundPointResult() abstract;
 	virtual void PlayRandomSound() abstract;
@@ -83,7 +65,7 @@ protected:
 	Poco::Mutex							m_Mutex;
 	Poco::Thread						m_Timer;
 	volatile bool						m_Quit;
-	std::unique_ptr<SQLite::Database>	m_Database;
+	std::unique_ptr<IDatabaseResource>	m_DBResource;
 
 	Poco::Event							m_StateChanged;				//!< Event notification of game state change
 	volatile unsigned int				m_UpdateId;					//!< Last update id
@@ -118,16 +100,13 @@ protected:
 	//	Return player name by it's id
 	virtual std::string GetPlayerNameById(const std::string& Uid) const override;
 	//	Return last N matches between specified players. One of player Ids may be empty to return matches played by other player
-	virtual std::vector<MatchResults> GetLastResultsForPlayers(const std::string& playerId1, const std::string& playerId2, int max) const override;
+	virtual std::vector<IDatabaseResource::MatchResults> GetLastResultsForPlayers(const std::string& playerId1, const std::string& playerId2, int max) const override;
 	//	Return last N matches
-	virtual std::vector<MatchResults> GetLastResults(int max) const override;
+	virtual std::vector<IDatabaseResource::MatchResults> GetLastResults(int max) const override;
 	//	Return random players who played at least one set together
 	virtual std::pair<std::string, std::string> GetRandomPlayers() const override;
 	//	Login player. If player exists his last logon time is updated, If player is logged on for first time his data are generated
 	virtual void LoginPlayer(const std::string& Uid) override;
-
-	//	Load results from active statement
-	void GetResultsFromStatement(SQLite::Statement& statement, std::vector<MatchResults>& results) const;
 
 	//	Trigger GUI update
 	void UpdateGui();
@@ -139,17 +118,18 @@ protected:
 
 	Poco::JSON::Array::Ptr GetLastLogons(size_t Count);
 	Poco::JSON::Array::Ptr GetUsers();
-	void RenameUser(const std::string& Id, const std::string& Name);
-
+	
+	Poco::JSON::Array::Ptr ConvertLogonsToJson(const std::vector<IDatabaseResource::User>& Players);
 
 //	Sounds
 //	NOTE: Sounds are played ONLY at next frame (aka with UpdateId set equally m_SoundsPlay)
 	void ResetSounds();
 	virtual void PlaySoundPointResult() override;
 	virtual void PlayRandomSound() override;
+	virtual IDatabaseResource& GetDatabase() const override;
 
 public:
-	CGameController(SQLite::Database* Database, Poco::Path FSClientRoot);
+	CGameController(std::unique_ptr<IDatabaseResource> DBResource, Poco::Path FSClientRoot);
    ~CGameController();
 	virtual void OnInputId(SideIndex button, const std::string& Id) override;
 	virtual void OnInputPress(SideIndex button, int miliseconds) override;

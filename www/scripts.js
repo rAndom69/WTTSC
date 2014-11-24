@@ -150,14 +150,12 @@ UpdateGameData = function (data) {
 }
 
 RandomEffectForScore = function () {
-    switch (Math.floor(Math.random() * 4)) {
+    switch (Math.floor(Math.random() * 3)) {
         case 0: return [{ name: "fade", parameters: {}},
                         { name: "fade", parameters: {}}];
         case 1: return [{ name: "drop", parameters: { direction: "left"} },
                         { name: "drop", parameters: { direction: "right" }}];
-        case 2: return [{name: "bounce", parameters: {}},
-                        {name: "bounce", parameters: {}}];
-        case 3: return [{name: "clip", parameters: { direction: "horizontal"} },
+        case 2: return [{name: "clip", parameters: { direction: "horizontal"} },
                         {name: "clip", parameters: { direction: "horizontal"}}];
     };
 }
@@ -188,12 +186,13 @@ UpdateData.configuration = function (data, pageChanged) {
 }
 
 UpdateData.idle = function (data, pageChanged) {
+    var html = undefined;
     if (data.scoreTable) {
         //  display score table. displayed state should be kept until new state arrives
+        html = "";
         var ScoreTable = data.scoreTable;
         var index;
         var htmlColumns = [];
-        var html = "";
         for (index = 0; index < NumScoreTables; ++index) {
             htmlColumns[index] = '<div class="scoreColumn" style="width:' + (100 / NumScoreTables) + '%;"><table>';
         }
@@ -222,6 +221,28 @@ UpdateData.idle = function (data, pageChanged) {
             htmlColumns[index] += '</table></div>';
             html += htmlColumns[index];
         }
+    }
+    else if (data.userRankTable) {
+        html = '<div class="scoreTitle GradientRed">' + data.scoreText + '</div>';
+        var rankTable = data.userRankTable;
+        var index;
+        html += '<table class="rankTable">';
+        html += '<tr><td class="Name">User</td><td colspan="3" class="ColumnName">Sets</td><td colspan="3" class="ColumnName">Matches</td></tr>'
+        for (index = 0; index < rankTable.length; ++index) {
+            var rank = rankTable[index];
+            html += "<tr>";
+            html += '<td class="Name">' + rank.name + "</td>";
+            html += '<td class="Won">' + rank.setsWon + "</td>";
+            html += '<td class="Delimiter">/</td>';
+            html += '<td class="Total">' + rank.setsTotal + "</td>";
+            html += '<td class="Won">' + rank.matchesWon + "</td>";
+            html += '<td class="Delimiter">/</td>';
+            html += '<td class="Total">' + rank.matchesTotal + "</td>";
+            html += "</tr>";
+        }
+        html += "</table>";
+    }
+    if (html !== undefined) {
         if (pageChanged) {
             $("#highscore").html(html);
         }

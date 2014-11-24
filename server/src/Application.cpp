@@ -3,10 +3,10 @@
 #include "Application.h"
 #include "HttpServer.h"
 #include "Game.h"
-#include "../ThirdParty/Database.h"
 #include <Poco/FormattingChannel.h>
 #include <Poco/PatternFormatter.h>
 #include <Poco/FileChannel.h>
+#include "Resources/SQLiteDatabaseResource.h"
 
 class NoDelayServerSocket : public Poco::Net::ServerSocket
 {
@@ -71,7 +71,9 @@ int Application::main(const std::vector < std::string > & args)
 		Database.reset(new SQLite::Database(Poco::Path(executableDir, "db.sqlite").toString(), SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE));
 	//	Game controller
 		Log.debug("Game initialization");
-		std::shared_ptr<CGameController> Game(new CGameController(Database.release(), Poco::Path(executableDir).pushDirectory("www")));
+		std::shared_ptr<CGameController> Game(new CGameController(
+			std::unique_ptr<CSQLiteDatabaseResource>(new CSQLiteDatabaseResource(std::move(Database))), 
+			Poco::Path(executableDir).pushDirectory("www")));
 		Game->Initialize();
 	//	HTTP server (serve static files and rpc)
 		Log.debug("Server initialization");
