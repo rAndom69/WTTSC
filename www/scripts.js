@@ -227,7 +227,7 @@ UpdateData.idle = function (data, pageChanged) {
         var rankTable = data.userRankTable;
         var index;
         html += '<table class="rankTable">';
-        html += '<tr><td class="Name">User</td><td colspan="3" class="ColumnName">Sets</td><td colspan="3" class="ColumnName">Matches</td></tr>'
+        html += '<tr><td class="Name">User</td><td colspan="3" class="ColumnName">Sets</td><td colspan="3" class="ColumnName">Matches</td><td class="Rank">Rank</td></tr>'
         for (index = 0; index < rankTable.length; ++index) {
             var rank = rankTable[index];
             html += "<tr>";
@@ -238,8 +238,12 @@ UpdateData.idle = function (data, pageChanged) {
             html += '<td class="Won">' + rank.matchesWon + "</td>";
             html += '<td class="Delimiter">/</td>';
             html += '<td class="Total">' + rank.matchesTotal + "</td>";
+            html += '<td class="Rank">' + rank.rank + '</td>'
             html += "</tr>";
         }
+        html += '<tr><td colspan="8" class="RankDescription"><br/>Ranking is based on ELO system.' +
+        '<br />The larger difference between players the lower gains for higher ranked player and bigger gain for lower ranked player.' +
+        '<br />Play higher ranked players to take their score!</td></tr>';
         html += "</table>";
     }
     if (html !== undefined) {

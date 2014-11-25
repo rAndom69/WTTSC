@@ -6,6 +6,7 @@
 #include <Poco/UUIDGenerator.h>
 #include <assert.h>
 #include "Resources/SoundResourceCollection.h"
+#include <math.h>
 
 //	Represent single game data.
 //	Game is played between two playes and they must switch sides of table based on number of sets played
@@ -220,16 +221,36 @@ public:
 class CIdleState : public ITemporaryCommonState
 {
 protected:
+	struct UserResultsRank : public IDatabaseResource::UserResults
+	{
+		double	Rank;
+
+		UserResultsRank(const std::string& _Uid, const std::string _Name)
+		{
+			Uid = _Uid;
+			Name = _Name;
+			SetsWon = 0;
+			SetsTotal = 0;
+			MatchesWon = 0;
+			MatchesTotal = 0;
+			Rank = 1600;
+		}
+		UserResultsRank()
+		{
+		}
+	};
+
 	Poco::Logger&	m_Log;
 	int				m_ReaderSet;
 	std::vector<IDatabaseResource::MatchResults> 
 					m_ScoreTable;
-	std::vector<IDatabaseResource::UserResults>
+	std::vector<UserResultsRank>
 					m_UserScoreTable;
 	std::string		m_ScoreTableText;
 	int				m_ResetsToScreenSaver;
 	int				m_CurrentStatistics;
-	
+
+
 	enum
 	{
 		MaxMatchForStatistics	= 18,							//!<	Number of matches displayed in statistics
@@ -242,7 +263,7 @@ protected:
 		ResetsToScreenSaver		= (10 * 60 * 1000) / TimeoutMs,	//!<	Number of resets before screen saver is run
 #endif
 	};
-	void DisplayStatistics(const std::vector<IDatabaseResource::UserResults>& Statistics);
+	void DisplayStatistics(const std::vector<UserResultsRank>& Statistics);
 	void DisplayStatistics(const std::vector<IDatabaseResource::MatchResults>& Statistics);
 	void DisplayStatisticsForPlayers(const IGameCallback* Callback, const std::string& playerId1, const std::string& playerId2);
 	void DisplayUserRankings(IDatabaseResource& Database);
@@ -394,6 +415,7 @@ Poco::JSON::Object CIdleState::GetInterfaceState(const IGameCallback* Callback, 
 			User->set("setsTotal", It->SetsTotal);
 			User->set("matchesWon", It->MatchesWon);
 			User->set("matchesTotal", It->MatchesTotal);
+			User->set("rank", static_cast<int>(It->Rank));
 			Users->add(User);
 		}
 		object.set("userRankTable", Users);
@@ -445,7 +467,7 @@ void CIdleState::DisplayStatisticsForPlayers(const IGameCallback* Callback, cons
 	DisplayStatistics(Callback->GetLastResultsForPlayers(playerId1, playerId2, MaxMatchForStatistics));
 }
 
-void CIdleState::DisplayStatistics(const std::vector<IDatabaseResource::UserResults>& Statistics)
+void CIdleState::DisplayStatistics(const std::vector<UserResultsRank>& Statistics)
 {
 	m_UserScoreTable = Statistics;
 	m_ScoreTable.clear();
@@ -464,8 +486,84 @@ void CIdleState::ResetTimeout()
 }
 
 void CIdleState::DisplayUserRankings(IDatabaseResource& Database)
-{	//	Last two months
-	DisplayStatistics(Database.GetUserResults((Poco::Timestamp() - (2LL * 30 * 24 * 60 * 60 * 1000 * 1000)).epochTime()));
+{
+	std::map<std::string, UserResultsRank>	UidToUserResult;
+	auto Matches = Database.GetLatestResultsFromTime((Poco::Timestamp() - (6LL * 30 * 24 * 60 * 60 * 1000 * 1000)).epochTime());
+
+	//	Average score will be 36 points per match (one more win for winner). 
+	//	This will be 18 points shift after single match for equal players
+	const double Kmatch = 24,
+				 Kset	= 16;
+	for (auto Match = Matches.begin(); Match != Matches.end(); ++Match)
+	{
+		//	ensure users are already present in map
+		for (size_t Idx = 0; Idx < 2; ++Idx) 
+		{
+			if (UidToUserResult.find(Match->PlayerUids[Idx]) == UidToUserResult.end())
+			{
+				UidToUserResult[Match->PlayerUids[Idx]] = UserResultsRank(Match->PlayerUids[Idx], Match->PlayerNames[Idx]);
+			}
+		}
+		UserResultsRank* Users[2] = {
+			&UidToUserResult.find(Match->PlayerUids[0])->second, 
+			&UidToUserResult.find(Match->PlayerUids[1])->second
+		};
+
+		auto Rating = [](const UserResultsRank& i, const UserResultsRank& j, double K) -> double
+		{
+			double E = 1. / (1. + pow(10., (i.Rank - j.Rank) / 400.));
+			return E * K;
+		};
+
+		//	adjust elo for each set accordingly
+		for (auto Set = Match->SetResults.begin(); Set != Match->SetResults.end(); ++Set)
+		{
+			size_t WinPlayer = 0;
+			if ((*Set)[0] < (*Set)[1])
+				WinPlayer = 1;
+			int PointD = ((*Set)[WinPlayer] - (*Set)[WinPlayer ^ 1]);
+
+			//	Minimum difference does not award any bonus.
+			PointD -= 2;
+			//	Maximum difference is 21
+			double ScoreF = 1. + (std::min(PointD, 21) / 21.);
+			double E = Rating(*Users[WinPlayer], *Users[WinPlayer^1], Kset * ScoreF);
+			Users[WinPlayer]->Rank += E;
+			Users[WinPlayer ^ 1]->Rank -= E;
+			Users[WinPlayer]->SetsWon++;
+			for (size_t Idx = 0; Idx < 2; ++Idx)
+			{
+				Users[Idx]->SetsTotal++;
+			}
+		}
+		//	adjust elo for entire match (if there was any winner)
+		if (Match->Win[0] || Match->Win[1])
+		{
+			size_t WinPlayer = 0;
+			if (Match->Win[1])
+				WinPlayer = 1;
+			double E = Rating(*Users[WinPlayer], *Users[WinPlayer^1], Kmatch);
+			Users[WinPlayer]->Rank += E;
+			Users[WinPlayer ^ 1]->Rank -= E;
+			Users[WinPlayer]->SetsWon++;
+		}
+		for (size_t Idx = 0; Idx < 2; ++Idx)
+		{
+			Users[Idx]->MatchesTotal++;
+			Users[Idx]->MatchesWon += (Match->Win[Idx] ? 1 : 0);
+		}
+	}
+
+	std::vector<UserResultsRank>	Results;
+	for (auto It = UidToUserResult.begin(); It != UidToUserResult.end(); ++It)
+	{
+		Results.push_back(It->second);
+	}
+	std::sort(Results.begin(), Results.end(), [](const UserResultsRank& i, const UserResultsRank& j) -> bool { 
+		return i.Rank > j.Rank;		
+	});
+
+	DisplayStatistics(Results);
 }
 
 /////////////////////////////////////////////////////////////////////////////////

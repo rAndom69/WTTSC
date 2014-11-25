@@ -85,6 +85,12 @@ body
     text-align: center;
 }
 
+.rankTable tr > td.Rank
+{
+    width: 10vw;
+    text-align: center;
+}
+
 .rankTable tr:first-child
 {
     font-weight: 900;

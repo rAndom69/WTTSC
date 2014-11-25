@@ -28,6 +28,8 @@ public:
 	virtual std::vector<MatchResults> GetLatestResultsForUsers(const std::string PlayerId, int Limit) override;
 	virtual std::vector<MatchResults> GetLatestResultsForUsers(const std::pair<std::string, std::string> PlayerId, int Limit) override;
 	virtual std::vector<MatchResults> GetLatestResults(int Limit) override;
+	virtual std::vector<MatchResults> GetLatestResultsFromTime(time_t Limit) override;
+
 	virtual std::pair<std::string, std::string> GetRandomUsers() override;
 	virtual std::vector<UserResults> GetUserResults(time_t Limit) override;
 

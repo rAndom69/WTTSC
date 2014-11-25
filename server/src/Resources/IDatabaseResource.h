@@ -34,6 +34,7 @@ public:
 		std::vector<Score>		SetResults;
 		Score					Result;
 		std::string				PlayerNames[2];
+		std::string				PlayerUids[2];
 		time_t					DateTime;
 		int						Win[2];
 	};
@@ -41,6 +42,7 @@ public:
 	virtual std::vector<MatchResults> GetLatestResultsForUsers(const std::string PlayerId, int Limit) abstract;
 	virtual std::vector<MatchResults> GetLatestResultsForUsers(const std::pair<std::string, std::string> PlayerId, int Limit) abstract;
 	virtual std::vector<MatchResults> GetLatestResults(int Limit) abstract;
+	virtual std::vector<MatchResults> GetLatestResultsFromTime(time_t Limit) abstract;
 
 	struct UserResults
 	{
@@ -52,6 +54,7 @@ public:
 		int						MatchesTotal;
 	};
 	virtual std::vector<UserResults> GetUserResults(time_t Limit) abstract;
+
 
 	virtual std::pair<std::string, std::string> GetRandomUsers() abstract;
 

@@ -95,6 +95,7 @@ std::vector<CSQLiteDatabaseResource::MatchResults> CSQLiteDatabaseResource::GetM
 				Results.back().Result[idx] = match_result[idx];
 				Results.back().PlayerNames[idx] = name[idx];
 				Results.back().Win[idx] = win[idx];
+				Results.back().PlayerUids[idx] = id[idx];
 			}
 			Results.back().DateTime = time;
 		}
@@ -149,6 +150,20 @@ std::vector<CSQLiteDatabaseResource::MatchResults> CSQLiteDatabaseResource::GetL
 		WHERE match_results.match in  \
 		(SELECT match FROM match_results ORDER BY date DESC LIMIT ?) \
 		ORDER BY match_results.DATE desc, results.date");
+	statement.bind(1, Limit);
+	return GetMatchResultsFromStatement(statement);
+}
+
+std::vector<CSQLiteDatabaseResource::MatchResults> CSQLiteDatabaseResource::GetLatestResultsFromTime(time_t Limit)
+{
+	SQLite::Statement	statement(*m_Database,
+		"SELECT results.match, results.uid1, results.uid2, results.result1, results.result2, match_results.result1, match_results.result2, match_results.date, match_results.win1, match_results.win2, users1.name, users2.name \
+		FROM results LEFT JOIN match_results ON results.match = match_results.match \
+		LEFT JOIN users AS users1 ON match_results.uid1 = users1.uid \
+		LEFT JOIN users AS users2 ON match_results.uid2 = users2.uid \
+		WHERE match_results.match in  \
+		(SELECT match FROM match_results WHERE date >= ? ORDER BY date) \
+		ORDER BY match_results.DATE, results.date");
 	statement.bind(1, Limit);
 	return GetMatchResultsFromStatement(statement);
 }
